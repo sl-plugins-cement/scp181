@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Last stand now cancels native death after damage modifiers and shields settle, restoring 1 HP.
+  Blocked or nonlethal hits no longer consume the charge; scripted instant kills bypass immunity.
+- Only completed escape transitions to MTF/Chaos retain SCP-181. Other completed role changes
+  clear its identity and buffs; cancelled transitions preserve them.
+- Debuff cleanup preserves shared Ensnared/Concussed effects used by other plugins.
+- A failed or cancelled Class-D conversion rejects assignment before releasing the incumbent.
+
 ## 1.1.0
 
 ### Fixed
