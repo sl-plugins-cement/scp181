@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Enums;
@@ -52,7 +52,7 @@ namespace Scp181.Events
             ServerHandler.RoundStarted += OnRoundStarted;
             ServerHandler.RoundEnded += OnRoundEnded;
             ServerHandler.RestartingRound += OnRestartingRound;
-            PlayerHandler.ChangingRole += OnChangingRole;
+            LabApi.Events.Handlers.PlayerEvents.Dying += OnDying;
             PlayerHandler.Spawned += OnSpawned;
             PlayerHandler.Hurting += OnHurting;
             PlayerHandler.Died += OnDied;
@@ -68,7 +68,7 @@ namespace Scp181.Events
             ServerHandler.RoundStarted -= OnRoundStarted;
             ServerHandler.RoundEnded -= OnRoundEnded;
             ServerHandler.RestartingRound -= OnRestartingRound;
-            PlayerHandler.ChangingRole -= OnChangingRole;
+            LabApi.Events.Handlers.PlayerEvents.Dying -= OnDying;
             PlayerHandler.Spawned -= OnSpawned;
             PlayerHandler.Hurting -= OnHurting;
             PlayerHandler.Died -= OnDied;
@@ -127,29 +127,25 @@ namespace Scp181.Events
 
         // ================= Escape keeps the passives =================
 
-        private void OnChangingRole(ChangingRoleEventArgs ev)
+        private void OnSpawned(SpawnedEventArgs ev)
         {
             if (!Scp181Manager.IsScp181(ev.Player))
                 return;
 
-            // Escaping as MTF or Chaos keeps the identity; only the role card color changes.
-            // The effects themselves are NOT reapplied here: ChangingRole fires before the role
-            // swap, and the game disables every effect on the swap, so anything applied now would
-            // be wiped a moment later. OnSpawned does the reapply.
-            if (NtfRoles.Contains(ev.NewRole))
-                Scp181Manager.SetTeam(ev.Player, Scp181Team.Ntf);
-            else if (ChaosRoles.Contains(ev.NewRole))
-                Scp181Manager.SetTeam(ev.Player, Scp181Team.Chaos);
-
-            // Death routes through Spectator; the identity is kept until OnDied so the death
-            // broadcast can still recognise it, and OnDied clears it afterwards.
-        }
-
-        private void OnSpawned(SpawnedEventArgs ev)
-        {
-            if (!Scp181Manager.IsScp181(ev.Player) || !ev.Player.IsAlive)
+            // Keep death ownership until OnDied emits the containment announcement.
+            if (ev.Reason == SpawnReason.Died)
                 return;
 
+            // Inspect the completed swap, so a cancelled role request cannot strip ownership.
+            if (ev.Reason != SpawnReason.Escaped || !ev.Player.IsAlive ||
+                (!NtfRoles.Contains(ev.Player.Role.Type) && !ChaosRoles.Contains(ev.Player.Role.Type)))
+            {
+                Scp181Manager.Remove(ev.Player);
+                return;
+            }
+
+            Scp181Manager.SetTeam(ev.Player, NtfRoles.Contains(ev.Player.Role.Type)
+                ? Scp181Team.Ntf : Scp181Team.Chaos);
             Scp181Team team = Scp181Manager.GetTeam(ev.Player) ?? Scp181Team.D;
             Scp181Hints.RemoveRoleIntro(ev.Player);
             Scp181Hints.ShowRoleIntro(ev.Player, team);
@@ -163,7 +159,17 @@ namespace Scp181.Events
         private void OnHurting(HurtingEventArgs ev)
         {
             Player victim = ev.Player;
-            if (!Scp181Manager.IsScp181(victim) || !victim.IsAlive)
+            if (!ev.IsAllowed || !Scp181Manager.IsScp181(victim) || !victim.IsAlive)
+                return;
+
+            DamageType damageType = ev.DamageHandler?.Type ?? DamageType.Unknown;
+            bool hasAttacker = ev.Attacker != null && ev.Attacker != victim;
+            RoleTypeId? attackerRole = hasAttacker ? ev.Attacker!.Role.Type : (RoleTypeId?)null;
+            bool fromScp = damageType.IsScp(checkItems: false)
+                           || (attackerRole.HasValue && PlayerRolesUtils.GetTeam(attackerRole.Value) == Team.SCPs);
+
+            // Scripted instant kills bypass immunity as well as damage mitigation.
+            if (ev.IsInstantKill && !fromScp && damageType != DamageType.PocketDimension)
                 return;
 
             // Post-last-stand immunity window: nothing lands at all.
@@ -172,12 +178,6 @@ namespace Scp181.Events
                 Deny(ev, victim);
                 return;
             }
-
-            DamageType damageType = ev.DamageHandler?.Type ?? DamageType.Unknown;
-            bool hasAttacker = ev.Attacker != null && ev.Attacker != victim;
-            RoleTypeId? attackerRole = hasAttacker ? ev.Attacker!.Role.Type : (RoleTypeId?)null;
-            bool fromScp = damageType.IsScp(checkItems: false)
-                           || (attackerRole.HasValue && PlayerRolesUtils.GetTeam(attackerRole.Value) == Team.SCPs);
 
             // Damage-over-time from a status effect (bleeding, poison, hypothermia, ...) never lands.
             if (damageType.IsStatusEffect())
@@ -240,14 +240,26 @@ namespace Scp181.Events
                 return;
             }
 
-            // Last stand: a hit that would end the round for SCP-181 leaves them on 1 HP instead.
-            if (IsLethal(ev, victim) && Scp181Manager.TryUseSurvive(victim))
-            {
-                ev.IsAllowed = false;
-                victim.Health = 1f;
-                Scp181Manager.GrantSurviveImmunity(victim, Config.SurviveImmunitySeconds);
-                Scp181Hints.ShowSurviveMsg(victim);
-            }
+        }
+
+        private void OnDying(LabApi.Events.Arguments.PlayerEvents.PlayerDyingEventArgs ev)
+        {
+            Player victim = Player.Get(ev.Player.ReferenceHub);
+            if (!ev.IsAllowed || !Scp181Manager.IsScp181(victim))
+                return;
+
+            // Native Dying runs after protection, damage modifiers, AHP and Hume Shield,
+            // but before death callbacks. Scripted instant kills must still terminate the role.
+            if (ev.DamageHandler is not PlayerStatsSystem.StandardDamageHandler damage || damage.Damage == -1f)
+                return;
+
+            if (!Scp181Manager.TryUseSurvive(victim))
+                return;
+
+            victim.Health = 1f;
+            ev.IsAllowed = false;
+            Scp181Manager.GrantSurviveImmunity(victim, Config.SurviveImmunitySeconds);
+            Scp181Hints.ShowSurviveMsg(victim);
         }
 
         private static void Deny(HurtingEventArgs ev, Player victim)

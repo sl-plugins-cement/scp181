@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Enums;
@@ -39,8 +39,6 @@ namespace Scp181
             EffectType.PocketCorroding,
             EffectType.Bleeding,
             EffectType.Poisoned,
-            EffectType.Ensnared,
-            EffectType.Concussed,
             EffectType.Hemorrhage,
             EffectType.Burned,
         };
@@ -95,7 +93,24 @@ namespace Scp181
             if (p == null || !p.IsConnected || !p.IsAlive || !ReinforcementRoleBridge.CanAssign(p))
                 return false;
 
-            // Validate before releasing the incumbent so a rejected request changes no ownership.
+            // Complete any required native role swap before claiming ownership or releasing
+            // the incumbent. Another plugin can cancel the swap without losing either role.
+            if (!IsScp181(p) && p.Role.Type != RoleTypeId.ClassD)
+            {
+                try
+                {
+                    p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ClassD, RoleChangeReason.None);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[Scp181] Failed to set the Class-D role: {ex.Message}");
+                    return false;
+                }
+
+                if (!p.IsConnected || p.Role.Type != RoleTypeId.ClassD || !ReinforcementRoleBridge.CanAssign(p))
+                    return false;
+            }
+
             foreach (Player current in Player.List.Where(x => x.Id != p.Id && IsScp181(x)).ToList())
                 Remove(current);
 
@@ -105,31 +120,12 @@ namespace Scp181
                 SurviveLeft[p.Id] = Config.SurviveChances;
                 PocketEscapesLeft[p.Id] = Config.PocketEscapeChances;
 
-                // Only respawn a player who is not already Class-D. ServerSetRole drops the
-                // inventory and moves the player to a Class-D spawn, so re-rolling an existing
-                // Class-D would silently take away round-start items and their position.
-                if (p.Role.Type != RoleTypeId.ClassD)
-                {
-                    try
-                    {
-                        p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ClassD, RoleChangeReason.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"[Scp181] Failed to set the Class-D role: {ex.Message}");
-                    }
-                }
-
                 p.MaxHealth = 100;
                 p.Health = 100;
             }
-            else
-            {
-                Active[p.Id] = Scp181Team.D;
-            }
 
             Scp181Hints.RemoveRoleIntro(p);
-            Scp181Hints.ShowRoleIntro(p, Scp181Team.D);
+            Scp181Hints.ShowRoleIntro(p, GetTeam(p) ?? Scp181Team.D);
             ApplyReductionEffects(p);
             StartDebuffGuard(p);
 

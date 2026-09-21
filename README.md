@@ -43,9 +43,10 @@ standalone. This check does not prevent another plugin assigning a new role to S
    instant-kill abilities (SCP-173's neck snap, SCP-049's instakill, SCP-106's grab), which are
    converted into capped damage instead of a guaranteed death.
 5. **Status effect immunity** — damage-over-time from bleeding, poison, hypothermia and similar
-   status effects never lands, and the effects themselves are stripped twice a second.
+   status effects never lands. Damaging debuffs are stripped twice a second; shared movement
+   effects (`Ensnared` and `Concussed`) are preserved.
 6. **Last stand** — a lethal hit is survived on 1 HP, `SurviveChances` times per assignment,
-   followed by `SurviveImmunitySeconds` of full immunity. Shields count toward "lethal".
+   followed by `SurviveImmunitySeconds` of full immunity. Lethality is evaluated after native damage reduction and shields.
 7. **Pocket Dimension escape** — the first lethal Pocket Dimension outcome per assignment is
    converted into a successful exit instead of a death, with the same aftermath the game applies
    to a normal exit.
@@ -53,7 +54,8 @@ standalone. This check does not prevent another plugin assigning a new role to S
    SCP-079's own doors and anything SCP-079 has locked are excluded. A failed roll is held for
    `UnlockRerollCooldownSeconds` so spamming the interact key cannot force an open.
 9. **Escape keeps everything** — escaping as MTF or Chaos retains every passive; only the role
-   card color changes (MTF blue `#4DA6FF`, Chaos dark green `#1E6B3A`).
+   card color changes (MTF blue `#4DA6FF`, Chaos dark green `#1E6B3A`). Other completed
+   role changes remove the identity and passives.
 
 Scripted terminations — the Alpha Warhead, pit crushing, SCP-079 recontainment, the friendly-fire
 detector and the RA `kill` command — bypass every mitigation above on purpose. SCP-181 is a
