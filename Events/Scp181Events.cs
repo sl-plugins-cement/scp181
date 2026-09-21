@@ -2,54 +2,48 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Enums;
+using Exiled.API.Extensions;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Server;
 using PlayerRoles;
+using PlayerRoles.FirstPersonControl;
+using PlayerRoles.PlayableScps.Scp106;
 using Scp181.Visuals;
-using ServerHandler = Exiled.Events.Handlers.Server;
+using UnityEngine;
 using PlayerHandler = Exiled.Events.Handlers.Player;
+using ServerHandler = Exiled.Events.Handlers.Server;
 
 namespace Scp181.Events
 {
     public class Scp181Events
     {
-        private static Config Config => MainClass.Instance.Config;
+        /// <summary>Inventory slots the game allows. A copy may only be granted below this.</summary>
+        private const int InventoryCapacity = 8;
 
         private static readonly HashSet<DoorType> Scp079Doors = new HashSet<DoorType>
         {
             DoorType.Scp079First,
             DoorType.Scp079Second,
-            DoorType.Scp079Armory
+            DoorType.Scp079Armory,
         };
 
         private static readonly HashSet<RoleTypeId> NtfRoles = new HashSet<RoleTypeId>
         {
             RoleTypeId.NtfPrivate, RoleTypeId.NtfSergeant,
-            RoleTypeId.NtfCaptain, RoleTypeId.NtfSpecialist
+            RoleTypeId.NtfCaptain, RoleTypeId.NtfSpecialist,
         };
 
         private static readonly HashSet<RoleTypeId> ChaosRoles = new HashSet<RoleTypeId>
         {
             RoleTypeId.ChaosConscript, RoleTypeId.ChaosRifleman,
-            RoleTypeId.ChaosMarauder, RoleTypeId.ChaosRepressor
+            RoleTypeId.ChaosMarauder, RoleTypeId.ChaosRepressor,
         };
 
-        /// <summary>所有 SCP 阵营角色（对 181 限伤 10）。</summary>
-        private static readonly HashSet<RoleTypeId> ScpRoles = new HashSet<RoleTypeId>
-        {
-            RoleTypeId.Scp049, RoleTypeId.Scp079, RoleTypeId.Scp096,
-            RoleTypeId.Scp106, RoleTypeId.Scp173, RoleTypeId.Scp3114,
-            RoleTypeId.Scp939, RoleTypeId.Scp0492
-        };
+        /// <summary>Last failed unlock roll per (player, interactable), so spamming cannot re-roll it.</summary>
+        private static readonly Dictionary<string, float> UnlockCooldowns = new Dictionary<string, float>();
 
-        /// <summary>已在 SCP-106 口袋空间获得 1 次逃生机会的玩家。</summary>
-        private static readonly HashSet<int> PocketExitUsed = new HashSet<int>();
-
-        private static void ResetFlags()
-        {
-            PocketExitUsed.Clear();
-        }
+        private static Config Config => MainClass.Instance!.Config;
 
         public void RegisterEvents()
         {
@@ -57,8 +51,8 @@ namespace Scp181.Events
             ServerHandler.RoundEnded += OnRoundEnded;
             ServerHandler.RestartingRound += OnRestartingRound;
             PlayerHandler.ChangingRole += OnChangingRole;
+            PlayerHandler.Spawned += OnSpawned;
             PlayerHandler.Hurting += OnHurting;
-            PlayerHandler.Dying += OnDying;
             PlayerHandler.Died += OnDied;
             PlayerHandler.Left += OnLeft;
             PlayerHandler.PickingUpItem += OnPickingUpItem;
@@ -72,8 +66,8 @@ namespace Scp181.Events
             ServerHandler.RoundEnded -= OnRoundEnded;
             ServerHandler.RestartingRound -= OnRestartingRound;
             PlayerHandler.ChangingRole -= OnChangingRole;
+            PlayerHandler.Spawned -= OnSpawned;
             PlayerHandler.Hurting -= OnHurting;
-            PlayerHandler.Dying -= OnDying;
             PlayerHandler.Died -= OnDied;
             PlayerHandler.Left -= OnLeft;
             PlayerHandler.PickingUpItem -= OnPickingUpItem;
@@ -81,104 +75,157 @@ namespace Scp181.Events
             PlayerHandler.InteractingLocker -= OnInteractingLocker;
         }
 
-        // ================= 开局/清理 =================
+        // ================= Round lifecycle =================
 
         private void OnRoundStarted()
         {
             ResetFlags();
-            // 稍等确保玩家已生成且角色已分配
+
+            // Give the server a moment to finish handing out round-start roles.
             MEC.Timing.CallDelayed(1f, () =>
             {
-                try { Scp181Manager.TrySelectRoundStart(); }
-                catch (Exception ex) { Log.Error($"[Scp181] 开局选人失败: {ex.Message}"); }
+                try
+                {
+                    Scp181Manager.TrySelectRoundStart();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[Scp181] Round-start selection failed: {ex.Message}");
+                }
             });
         }
 
-        private void OnRoundEnded(RoundEndedEventArgs ev) { Scp181Manager.Clear(); ResetFlags(); }
-        private void OnRestartingRound() { Scp181Manager.Clear(); ResetFlags(); }
+        private void OnRoundEnded(RoundEndedEventArgs ev)
+        {
+            Scp181Manager.Clear();
+            ResetFlags();
+        }
 
-        // ================= 撤离保留 / 死亡清除 =================
+        private void OnRestartingRound()
+        {
+            Scp181Manager.Clear();
+            ResetFlags();
+        }
+
+        private static void ResetFlags() => UnlockCooldowns.Clear();
+
+        // ================= Escape keeps the passives =================
 
         private void OnChangingRole(ChangingRoleEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
+            if (!Scp181Manager.IsScp181(ev.Player))
+                return;
 
-            RoleTypeId newRole = ev.NewRole;
+            // Escaping as MTF or Chaos keeps the identity; only the role card color changes.
+            // The effects themselves are NOT reapplied here: ChangingRole fires before the role
+            // swap, and the game disables every effect on the swap, so anything applied now would
+            // be wiped a moment later. OnSpawned does the reapply.
+            if (NtfRoles.Contains(ev.NewRole))
+                Scp181Manager.SetTeam(ev.Player, Scp181Team.Ntf);
+            else if (ChaosRoles.Contains(ev.NewRole))
+                Scp181Manager.SetTeam(ev.Player, Scp181Team.Chaos);
 
-            // 撤离为九尾狐 / 混沌：保留身份与全部被动，仅切换角色介绍配色
-            if (NtfRoles.Contains(newRole) || ChaosRoles.Contains(newRole))
-            {
-                Scp181Team team = NtfRoles.Contains(newRole) ? Scp181Team.Ntf : Scp181Team.Chaos;
-                Scp181Hints.RemoveRoleIntro(ev.Player);
-                Scp181Hints.ShowRoleIntro(ev.Player, team);
-                Scp181Manager.ApplyReductionEffects(ev.Player); // 撤离后重新施加 10 级减伤
-            }
-            // 死亡换角到 Spectator 时不在此刻移除身份，
-            // 以保证 OnDied 仍能识别并发送死亡广播；OnDied 结束时会统一清理。
+            // Death routes through Spectator; the identity is kept until OnDied so the death
+            // broadcast can still recognise it, and OnDied clears it afterwards.
         }
 
-        // ================= 被动②：任何来源 50% 免伤 + 绝境生还 =================
+        private void OnSpawned(SpawnedEventArgs ev)
+        {
+            if (!Scp181Manager.IsScp181(ev.Player) || !ev.Player.IsAlive)
+                return;
+
+            Scp181Team team = Scp181Manager.GetTeam(ev.Player) ?? Scp181Team.D;
+            Scp181Hints.RemoveRoleIntro(ev.Player);
+            Scp181Hints.ShowRoleIntro(ev.Player, team);
+
+            // The role change cleared the effects; put them back now that the new role is live.
+            Scp181Manager.ApplyReductionEffects(ev.Player);
+        }
+
+        // ================= Damage mitigation =================
 
         private void OnHurting(HurtingEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
-            if (ev.Player == null || !ev.Player.IsAlive) return;
-
             Player victim = ev.Player;
+            if (!Scp181Manager.IsScp181(victim) || !victim.IsAlive)
+                return;
 
-            // 绝境生还后的短暂无敌窗口：完全无效
+            // Post-last-stand immunity window: nothing lands at all.
             if (Scp181Manager.InSurviveImmunity(victim))
             {
-                ev.IsAllowed = false;
-                Scp181Manager.ClearScpDebuffs(victim);
+                Deny(ev, victim);
                 return;
             }
 
+            DamageType damageType = ev.DamageHandler?.Type ?? DamageType.Unknown;
             bool hasAttacker = ev.Attacker != null && ev.Attacker != victim;
-            RoleTypeId? attackerRole = hasAttacker ? ev.Attacker.Role.Type : (RoleTypeId?)null;
+            RoleTypeId? attackerRole = hasAttacker ? ev.Attacker!.Role.Type : (RoleTypeId?)null;
+            bool fromScp = damageType.IsScp(checkItems: false)
+                           || (attackerRole.HasValue && PlayerRolesUtils.GetTeam(attackerRole.Value) == Team.SCPs);
 
-            // 按伤害来源查减免表（Firearm=子弹，或按 SCP 角色名）：0=完全无效，<1 按比例减免
-            float multiplier = 1f;
-            if (ev.DamageHandler != null)
+            // Damage-over-time from a status effect (bleeding, poison, hypothermia, ...) never lands.
+            if (damageType.IsStatusEffect())
             {
-                string keyword = KindOf(ev.DamageHandler);
-                if (Config.DamageReductionTable != null && Config.DamageReductionTable.TryGetValue(keyword, out float m))
-                    multiplier = m;
-                else if (attackerRole.HasValue && Config.DamageReductionTable.TryGetValue(attackerRole.Value.ToString(), out float m2))
-                    multiplier = m2;
+                Deny(ev, victim);
+                return;
             }
+
+            // Pocket Dimension: the first lethal outcome per round is converted into an escape
+            // instead of a death. Non-lethal decay ticks fall through to normal mitigation.
+            if (damageType == DamageType.PocketDimension)
+            {
+                if (IsLethal(ev, victim) && Scp181Manager.TryUsePocketEscape(victim))
+                {
+                    Deny(ev, victim);
+                    EscapePocket(victim);
+                    return;
+                }
+            }
+
+            // A damage handler with Damage == -1 is the game's instant-kill sentinel
+            // (StandardDamageHandler.KillValue): it zeroes health directly and skips both
+            // ProcessDamage and any arithmetic done here. It has to be turned into a real number
+            // BEFORE anything multiplies it, otherwise a reduction multiplier turns a guaranteed
+            // kill into "Damage <= 0 => no damage at all".
+            if (ev.IsInstantKill)
+            {
+                // Scripted terminations (warhead, pit, recontainment, RA kill, friendly-fire
+                // detector) are deliberately left alone: SCP-181 is a survivability role, not an
+                // exemption from the round's own kill switches.
+                if (!fromScp)
+                    return;
+
+                // SCP-173's neck snap, SCP-049's instakill and SCP-106's grab all arrive here.
+                // They obey the same cap as any other SCP hit. The clamp keeps a misconfigured
+                // negative cap from re-creating the instant-kill sentinel.
+                ev.Amount = Mathf.Max(0f, Config.ScpDamageCap);
+            }
+
+            float multiplier = ResolveMultiplier(damageType, attackerRole);
             if (multiplier <= 0f)
             {
-                ev.IsAllowed = false;
-                Scp181Manager.ClearScpDebuffs(victim);
-                return;
-            }
-            if (multiplier < 1f) ev.Amount *= multiplier;
-
-            // 所有 SCP 对 181 的限伤仅为 10（无论是否触发免伤）
-            if (attackerRole.HasValue && ScpRoles.Contains(attackerRole.Value) && ev.Amount > 10f)
-                ev.Amount = 10f;
-
-            // 持续伤害(DOT 流血/腐蚀)：SCP-181 不承受此类伤害
-            if (IsDotDamage(ev.DamageHandler))
-            {
-                Scp181Manager.ClearScpDebuffs(victim);
-                ev.IsAllowed = false;
+                Deny(ev, victim);
                 return;
             }
 
-            // 50% 免伤（任何来源）
+            if (multiplier < 1f)
+                ev.Amount *= multiplier;
+
+            if (fromScp && ev.Amount > Config.ScpDamageCap)
+                ev.Amount = Config.ScpDamageCap;
+
+            // Flat dodge chance against everything that got this far.
             if (UnityEngine.Random.value < Config.DodgeChance)
             {
-                ev.IsAllowed = false;
-                Scp181Manager.ClearScpDebuffs(victim);
+                Deny(ev, victim);
                 if (hasAttacker)
-                    Scp181Hints.ShowDodgeMsg(ev.Attacker);
+                    Scp181Hints.ShowDodgeMsg(ev.Attacker!);
+
                 return;
             }
 
-            // 免伤未触发：若本次伤害会致命，则消耗一次绝境生还（用完即无）
-            if (ev.Amount >= victim.Health && Scp181Manager.TryUseSurvive(victim))
+            // Last stand: a hit that would end the round for SCP-181 leaves them on 1 HP instead.
+            if (IsLethal(ev, victim) && Scp181Manager.TryUseSurvive(victim))
             {
                 ev.IsAllowed = false;
                 victim.Health = 1f;
@@ -187,136 +234,190 @@ namespace Scp181.Events
             }
         }
 
-        /// <summary>是否 SCP-106 口袋空间致命伤害（按运行时类型名匹配，避免依赖内部类型）。</summary>
-        private static bool IsPocketDamage(PlayerStatsSystem.DamageHandlerBase handler)
-            => handler != null && handler.GetType().Name.Contains("PocketDimension");
-
-        /// <summary>是否流血/腐蚀类持续伤害。</summary>
-        private static bool IsDotDamage(PlayerStatsSystem.DamageHandlerBase handler)
-            => handler != null &&
-               (handler.GetType().Name.Contains("Bleeding") || handler.GetType().Name.Contains("Corroding"));
-
-        /// <summary>伤害来源关键词（Firearm=枪械，其余返回处理类型名）。</summary>
-        private static string KindOf(PlayerStatsSystem.DamageHandlerBase handler)
+        private static void Deny(HurtingEventArgs ev, Player victim)
         {
-            string name = handler.GetType().Name;
-            return name.Contains("Firearm") ? "Firearm" : name;
+            ev.IsAllowed = false;
+            Scp181Manager.ClearScpDebuffs(victim);
         }
 
-        // ================= SCP-106 口袋空间：181 必有一次出去的机会 =================
+        /// <summary>Whether this hit would actually finish the player, shields included.</summary>
+        private static bool IsLethal(HurtingEventArgs ev, Player victim)
+            => ev.IsInstantKill || ev.Amount >= victim.Health + victim.ArtificialHealth + victim.HumeShield;
 
-        private void OnDying(DyingEventArgs ev)
+        /// <summary>
+        /// Looks the kept-damage fraction up by the exact damage type, then by the generic
+        /// "Firearm" key for any weapon, then by the attacker's role name.
+        /// </summary>
+        private static float ResolveMultiplier(DamageType damageType, RoleTypeId? attackerRole)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
+            Dictionary<string, float> table = Config.DamageReductionTable;
+            if (table == null || table.Count == 0)
+                return 1f;
 
-            // 仅在口袋空间致死且尚未用过逃生机会时，给一次活着出去的机会
-            if (IsPocketDamage(ev.DamageHandler) && !PocketExitUsed.Contains(ev.Player.Id))
-            {
-                PocketExitUsed.Add(ev.Player.Id);
-                ev.IsAllowed = false;
-                Scp181Manager.ClearScpDebuffs(ev.Player);
-                EscapePocket(ev.Player);
-            }
+            if (table.TryGetValue(damageType.ToString(), out float exact))
+                return exact;
+
+            if (damageType.IsWeapon() && table.TryGetValue(nameof(DamageType.Firearm), out float firearm))
+                return firearm;
+
+            if (attackerRole.HasValue && table.TryGetValue(attackerRole.Value.ToString(), out float byRole))
+                return byRole;
+
+            return 1f;
         }
 
+        /// <summary>
+        /// Moves SCP-181 out of the Pocket Dimension alive, mirroring the game's own successful
+        /// exit (PocketDimensionTeleport.Exit): best exit pose for the role, the same Disabled +
+        /// Traumatized aftermath, decay effects cleared and the teleports reshuffled.
+        /// This runs from Hurting rather than Dying on purpose - by the time Dying fires the game
+        /// has already zeroed the health bar, so cancelling there leaves a 0 HP player walking.
+        /// </summary>
         private static void EscapePocket(Player p)
         {
             try
             {
-                var zoneRooms = Room.List
-                    .Where(r => r != null && r.GameObject != null && r.Zone != ZoneType.Surface)
-                    .ToList();
-                Room target = zoneRooms.Count > 0
-                    ? zoneRooms[UnityEngine.Random.Range(0, zoneRooms.Count)]
-                    : Room.List.FirstOrDefault();
-                if (target != null)
-                    p.Teleport(target.GameObject.transform.position + new UnityEngine.Vector3(0f, 0.5f, 0f));
+                if (p.Role.Base is not IFpcRole fpcRole)
+                {
+                    Log.Warn("[Scp181] Pocket Dimension escape skipped: the role has no first-person module.");
+                    return;
+                }
+
+                fpcRole.FpcModule.ServerOverridePosition(Scp106PocketExitFinder.GetBestExitPosition(fpcRole));
+                Scp181Manager.ClearScpDebuffs(p);
+                p.EnableEffect(EffectType.Disabled, 10f, addDurationIfActive: true);
+                p.EnableEffect(EffectType.Traumatized);
+                PocketDimensionGenerator.RandomizeTeleports();
+
+                if (Config.Debug)
+                    Log.Info($"[Scp181] {p.Nickname} escaped the Pocket Dimension.");
             }
             catch (Exception ex)
             {
-                Log.Error($"[Scp181] 口袋逃生传送失败: {ex.Message}");
+                Log.Error($"[Scp181] Pocket Dimension escape failed: {ex.Message}");
             }
         }
 
-        // ================= 死亡广播 =================
+        // ================= Death broadcast =================
 
         private void OnDied(DiedEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
+            if (!Scp181Manager.IsScp181(ev.Player))
+                return;
 
             try
             {
-                // 公告里显示的是“杀死 181 的那个人”的名字
                 string killerName = ev.Attacker != null ? ev.Attacker.Nickname : "未知";
                 if (Config.DiedCassieEnable)
                     Exiled.API.Features.Cassie.MessageTranslated(Config.CassieTransmission, Config.CassieSubtitles, false, true, true);
 
-                string announce = Config.DeathAnnounce.Replace("{name}", killerName);
-                Map.Broadcast((ushort)Config.DeathAnnounceSeconds, announce);
+                Map.Broadcast((ushort)Config.DeathAnnounceSeconds, Config.DeathAnnounce.Replace("{name}", killerName));
             }
             catch (Exception ex)
             {
-                Log.Error($"[Scp181] 死亡广播失败: {ex.Message}");
+                Log.Error($"[Scp181] Death broadcast failed: {ex.Message}");
             }
 
-            // 死亡后清除身份与临时提示（OverDied 已在 OnDied 中统一清理）
-            Scp181Hints.ClearTransient(ev.Player);
             Scp181Manager.Remove(ev.Player);
         }
 
         private void OnLeft(LeftEventArgs ev)
         {
-            Scp181Hints.ClearTransient(ev.Player);
             Scp181Manager.Remove(ev.Player);
+            ClearUnlockCooldowns(ev.Player);
         }
 
-        // ================= 被动①：拾取物品 30% 复制一份 =================
+        // ================= Item duplication =================
 
         private void OnPickingUpItem(PickingUpItemEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
-            if (Config.Debug)
-                Log.Info($"[Scp181] {ev.Player.Nickname} 拾取了 {ev.Pickup.Info.ItemId}");
+            if (!Scp181Manager.IsScp181(ev.Player) || ev.Pickup == null)
+                return;
 
-            if (UnityEngine.Random.value >= Config.CopyChance) return;
+            if (Config.Debug)
+                Log.Info($"[Scp181] {ev.Player.Nickname} picked up {ev.Pickup.Info.ItemId}.");
+
+            if (UnityEngine.Random.value >= Config.CopyChance)
+                return;
+
+            // This fires BEFORE the pickup itself is inserted. Handing out the copy at slot 8 would
+            // make the real pickup's ServerAddItem return null while the completor destroys the
+            // pickup anyway, so the player would lose the item they were picking up. Only duplicate
+            // when there is room for both.
+            if (ev.Player.Items.Count >= InventoryCapacity - 1)
+                return;
 
             try
             {
-                ItemType type = ev.Pickup.Info.ItemId;
-                // 只复制普通物品；背包满时 AddItem 会失败，静默忽略
-                ev.Player.AddItem(type);
-                Scp181Hints.ShowCopyMsg(ev.Player); // 复制成功时在屏幕下方提示
+                if (ev.Player.AddItem(ev.Pickup.Info.ItemId) != null)
+                    Scp181Hints.ShowCopyMsg(ev.Player);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] Item duplication failed: {ex.Message}");
+            }
         }
 
-        // ================= 被动③：30% 开启权限门（排除 079 门/被锁门）=================
+        // ================= Lucky unlocks =================
 
         private void OnInteractingDoor(InteractingDoorEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
-            if (ev.Door == null) return;
+            if (!Scp181Manager.IsScp181(ev.Player) || ev.Door == null)
+                return;
 
-            // 排除 SCP-079 的门 或 已被 079 锁定的门
+            // SCP-079's own doors and anything 079 has locked stay out of reach.
             if (Scp079Doors.Contains(ev.Door.Type) || ev.Door.IsLocked)
                 return;
 
-            if (UnityEngine.Random.value < Config.UnlockChance)
-            {
-                ev.IsAllowed = true;
-                if (Config.Debug)
-                    Log.Info($"[Scp181] {ev.Player.Nickname} 幸运地开启了门 {ev.Door.Name}");
-            }
-        }
+            if (!TryUnlockRoll(ev.Player, "door:" + ev.Door.Base.GetInstanceID()))
+                return;
 
-        // ================= 被动③b：30% 开启 SCP 物品柜 =================
+            ev.IsAllowed = true;
+            if (Config.Debug)
+                Log.Info($"[Scp181] {ev.Player.Nickname} got lucky on door {ev.Door.Name}.");
+        }
 
         private void OnInteractingLocker(InteractingLockerEventArgs ev)
         {
-            if (!Scp181Manager.IsScp181(ev.Player)) return;
+            if (!Scp181Manager.IsScp181(ev.Player) || ev.InteractingLocker == null)
+                return;
+
+            if (TryUnlockRoll(ev.Player, $"locker:{ev.InteractingLocker.Base.GetInstanceID()}:{ev.InteractingChamber?.Id}"))
+                ev.IsAllowed = true;
+        }
+
+        /// <summary>
+        /// Rolls the unlock chance once per interactable, then holds the result for
+        /// UnlockRerollCooldownSeconds. Without the hold, spamming the interact key re-rolls every
+        /// press and turns a 30% chance into a guaranteed open.
+        /// </summary>
+        private static bool TryUnlockRoll(Player player, string interactableKey)
+        {
+            string key = player.Id + "|" + interactableKey;
+            float now = Time.timeSinceLevelLoad;
+
+            if (UnlockCooldowns.TryGetValue(key, out float retryAt) && now < retryAt)
+                return false;
 
             if (UnityEngine.Random.value < Config.UnlockChance)
-                ev.IsAllowed = true;
+            {
+                UnlockCooldowns.Remove(key);
+                return true;
+            }
+
+            UnlockCooldowns[key] = now + Mathf.Max(0f, Config.UnlockRerollCooldownSeconds);
+            return false;
+        }
+
+        private static void ClearUnlockCooldowns(Player player)
+        {
+            if (player == null)
+                return;
+
+            string prefix = player.Id + "|";
+            foreach (string key in UnlockCooldowns.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList())
+                UnlockCooldowns.Remove(key);
         }
     }
 }

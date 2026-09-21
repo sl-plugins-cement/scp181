@@ -10,64 +10,111 @@ using Scp181.Visuals;
 namespace Scp181
 {
     /// <summary>
-    /// SCP-181 身份管理。
-    /// 记录当前 SCP-181 玩家、其撤立场(配色)与绝境生还后的免伤窗口。
+    /// Tracks who is SCP-181, which side they currently count as (role card color), and the
+    /// per-player budgets that the passives draw from (last stand, Pocket Dimension escape,
+    /// post-last-stand immunity window).
     /// </summary>
     public static class Scp181Manager
     {
-        /// <summary>当前 SCP-181 玩家 Id -> 撤立场（D=默认）。</summary>
+        /// <summary>Current SCP-181 player id -> side used for the role card color.</summary>
         private static readonly Dictionary<int, Scp181Team> Active = new Dictionary<int, Scp181Team>();
-        /// <summary>绝境生还后的免伤截止时间（DateTime ticks）。</summary>
+
+        /// <summary>End of the post-last-stand immunity window, in <see cref="DateTime.UtcNow"/> ticks.</summary>
         private static readonly Dictionary<int, long> ImmortalUntil = new Dictionary<int, long>();
-        /// <summary>绝境生还剩余次数玩家 Id -> 剩余次数（用完即清零）。</summary>
+
+        /// <summary>Remaining last-stand charges.</summary>
         private static readonly Dictionary<int, int> SurviveLeft = new Dictionary<int, int>();
 
-        private static Config Config => MainClass.Instance.Config;
+        /// <summary>Remaining guaranteed Pocket Dimension escapes.</summary>
+        private static readonly Dictionary<int, int> PocketEscapesLeft = new Dictionary<int, int>();
+
+        /// <summary>Running debuff-guard coroutines, so a re-assign cannot stack a second one.</summary>
+        private static readonly Dictionary<int, CoroutineHandle> DebuffGuards = new Dictionary<int, CoroutineHandle>();
+
+        private static readonly EffectType[] ClearedDebuffs =
+        {
+            EffectType.CardiacArrest,
+            EffectType.Corroding,
+            EffectType.PocketCorroding,
+            EffectType.Bleeding,
+            EffectType.Poisoned,
+            EffectType.Ensnared,
+            EffectType.Concussed,
+            EffectType.Hemorrhage,
+            EffectType.Burned,
+        };
+
+        private static Config Config => MainClass.Instance!.Config;
 
         public static bool IsScp181(Player p) => p != null && Active.ContainsKey(p.Id);
 
         public static Scp181Team? GetTeam(Player p)
-            => Active.TryGetValue(p.Id, out var t) ? (Scp181Team?)t : null;
+            => p != null && Active.TryGetValue(p.Id, out Scp181Team t) ? (Scp181Team?)t : null;
 
-        /// <summary>受击时是否处于绝境生还后的免伤窗口。</summary>
-        public static bool InSurviveImmunity(Player p)
-            => p != null && ImmortalUntil.TryGetValue(p.Id, out var until) && System.DateTime.UtcNow.Ticks < until;
-
-        /// <summary>绝境生还后开启短暂免伤窗口。</summary>
-        public static void GrantSurviveImmunity(Player p, float seconds)
-            => ImmortalUntil[p.Id] = System.DateTime.UtcNow.AddSeconds(seconds).Ticks;
-
-        /// <summary>绝境生还：若还有剩余次数则消耗一次并返回 true（用一次少一次）。</summary>
-        public static bool TryUseSurvive(Player p)
+        /// <summary>Records the side SCP-181 currently counts as, for the role card color.</summary>
+        public static void SetTeam(Player p, Scp181Team team)
         {
-            if (p == null) return false;
-            if (!SurviveLeft.TryGetValue(p.Id, out int left) || left <= 0)
+            if (p != null && Active.ContainsKey(p.Id))
+                Active[p.Id] = team;
+        }
+
+        /// <summary>Whether the player is inside the short immunity window granted by a last stand.</summary>
+        public static bool InSurviveImmunity(Player p)
+            => p != null && ImmortalUntil.TryGetValue(p.Id, out long until) && DateTime.UtcNow.Ticks < until;
+
+        public static void GrantSurviveImmunity(Player p, float seconds)
+        {
+            if (p != null)
+                ImmortalUntil[p.Id] = DateTime.UtcNow.AddSeconds(seconds).Ticks;
+        }
+
+        /// <summary>Spends one last-stand charge; false when none are left.</summary>
+        public static bool TryUseSurvive(Player p) => TrySpend(SurviveLeft, p);
+
+        /// <summary>Spends one guaranteed Pocket Dimension escape; false when none are left.</summary>
+        public static bool TryUsePocketEscape(Player p) => TrySpend(PocketEscapesLeft, p);
+
+        private static bool TrySpend(IDictionary<int, int> budget, Player p)
+        {
+            if (p == null || !budget.TryGetValue(p.Id, out int left) || left <= 0)
                 return false;
-            SurviveLeft[p.Id] = left - 1;
+
+            budget[p.Id] = left - 1;
             return true;
         }
 
-        /// <summary>把指定存活玩家设置为 SCP-181（设为 D 级模型 + 挂身份 + 显示介绍）。</summary>
+        /// <summary>
+        /// Makes the given living player SCP-181: Class-D body, passives attached, role card shown.
+        /// Re-assigning the current SCP-181 only refreshes the card, so the command is idempotent.
+        /// </summary>
         public static void Assign(Player p)
         {
-            if (p == null || !p.IsConnected) return;
+            if (p == null || !p.IsConnected)
+                return;
 
-            // 若已是 SCP-181（例如重复指令/撤离后），仅刷新介绍
             if (!IsScp181(p))
             {
                 Active[p.Id] = Scp181Team.D;
-                SurviveLeft[p.Id] = Config.SurviveChances; // 赋身时重设绝境生还次数
-                Config cfg = Config;
-                try
+                SurviveLeft[p.Id] = Config.SurviveChances;
+                PocketEscapesLeft[p.Id] = Config.PocketEscapeChances;
+
+                // Only respawn a player who is not already Class-D. ServerSetRole drops the
+                // inventory and moves the player to a Class-D spawn, so re-rolling an existing
+                // Class-D would silently take away round-start items and their position.
+                if (p.Role.Type != RoleTypeId.ClassD)
                 {
-                    p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ClassD, RoleChangeReason.None);
-                    p.MaxHealth = 100;
-                    p.Health = 100;
+                    try
+                    {
+                        p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ClassD, RoleChangeReason.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[Scp181] Failed to set the Class-D role: {ex.Message}");
+                    }
                 }
-                catch (System.Exception ex)
-                {
-                    Log.Error($"[Scp181] Assign 设置 D 级角色失败: {ex.Message}");
-                }
+
+                p.MaxHealth = 100;
+                p.Health = 100;
             }
             else
             {
@@ -77,46 +124,81 @@ namespace Scp181
             Scp181Hints.RemoveRoleIntro(p);
             Scp181Hints.ShowRoleIntro(p, Scp181Team.D);
             ApplyReductionEffects(p);
-            Timing.RunCoroutine(GuardDebuffs(p)); // 常驻清除 SCP debuff
+            StartDebuffGuard(p);
+
             if (Config.Debug)
-                Log.Info($"[Scp181] 玩家 {p.Nickname} ({p.UserId}) 已成为 SCP-181");
+                Log.Info($"[Scp181] {p.Nickname} ({p.UserId}) is now SCP-181.");
         }
 
-        /// <summary>给 SCP-181 施加 50 级 躯体减伤 + 普攻减伤（换角会清除效果，撤离后需重新施加）。</summary>
+        /// <summary>
+        /// (Re)applies the permanent damage reduction effects. The game disables every effect on a
+        /// role change (StatusEffectBase.OnRoleChanged), so this has to run AFTER the new role is
+        /// live - see the Spawned handler in Scp181Events.
+        /// </summary>
         public static void ApplyReductionEffects(Player p)
         {
-            if (p == null) return;
+            if (p == null || !p.IsConnected)
+                return;
+
             try
             {
-                p.EnableEffect(EffectType.BodyshotReduction, 50, 3600f);
-                p.EnableEffect(EffectType.DamageReduction, 50, 3600f);
+                p.EnableEffect(EffectType.BodyshotReduction, Config.BodyshotReductionIntensity, 3600f);
+                p.EnableEffect(EffectType.DamageReduction, Config.DamageReductionIntensity, 3600f);
             }
             catch (Exception ex)
             {
-                Log.Error($"[Scp181] 施加减伤效果失败: {ex.Message}");
+                Log.Error($"[Scp181] Failed to apply the damage reduction effects: {ex.Message}");
             }
         }
 
-        /// <summary>清除 SCP 施加的各类 debuff（049 心脏骤停、106 腐蚀/流血、939 毒、贡喉等）。</summary>
-        public static void ClearScpDebuffs(Player p)
+        /// <summary>Takes the plugin's own buffs back off a player who is no longer SCP-181.</summary>
+        private static void RemoveReductionEffects(Player p)
         {
-            if (p == null) return;
+            if (p == null || !p.IsConnected)
+                return;
+
             try
             {
-                p.DisableEffect(EffectType.CardiacArrest);
-                p.DisableEffect(EffectType.Corroding);
-                p.DisableEffect(EffectType.Bleeding);
-                p.DisableEffect(EffectType.Poisoned);
-                p.DisableEffect(EffectType.Ensnared);
-                p.DisableEffect(EffectType.Concussed);
-                p.DisableEffect(EffectType.Hemorrhage);
-                p.DisableEffect(EffectType.Burned);
+                p.DisableEffect(EffectType.BodyshotReduction);
+                p.DisableEffect(EffectType.DamageReduction);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Error($"[Scp181] Failed to remove the damage reduction effects: {ex.Message}");
+            }
         }
 
-        /// <summary>对 SCP-181 常驻清除 debuff 的守卫协程（0.5s 轮询，身份移除即停止）。</summary>
-        public static IEnumerator<float> GuardDebuffs(Player p)
+        /// <summary>Clears the status effects SCP-181 is immune to (SCP debuffs plus Pocket Dimension decay).</summary>
+        public static void ClearScpDebuffs(Player p)
+        {
+            if (p == null || !p.IsConnected)
+                return;
+
+            try
+            {
+                foreach (EffectType effect in ClearedDebuffs)
+                    p.DisableEffect(effect);
+            }
+            catch (Exception ex)
+            {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] Failed to clear debuffs: {ex.Message}");
+            }
+        }
+
+        private static void StartDebuffGuard(Player p)
+        {
+            if (p == null)
+                return;
+
+            if (DebuffGuards.TryGetValue(p.Id, out CoroutineHandle running))
+                Timing.KillCoroutines(running);
+
+            DebuffGuards[p.Id] = Timing.RunCoroutine(GuardDebuffs(p));
+        }
+
+        /// <summary>Re-clears SCP debuffs twice a second for as long as the player is SCP-181.</summary>
+        private static IEnumerator<float> GuardDebuffs(Player p)
         {
             while (p != null && p.IsConnected && IsScp181(p))
             {
@@ -125,57 +207,93 @@ namespace Scp181
             }
         }
 
-        /// <summary>移除玩家 SCP-181 身份（死亡撤离失败/换角/离开）。</summary>
+        /// <summary>
+        /// Drops the SCP-181 identity and everything attached to it. Every exit path (death, leave,
+        /// reassignment, round end) goes through here so no buff or budget outlives the identity.
+        /// </summary>
         public static void Remove(Player p)
         {
-            if (p == null) return;
-            Active.Remove(p.Id);
+            if (p == null)
+                return;
+
+            if (DebuffGuards.TryGetValue(p.Id, out CoroutineHandle guard))
+            {
+                Timing.KillCoroutines(guard);
+                DebuffGuards.Remove(p.Id);
+            }
+
+            bool wasActive = Active.Remove(p.Id);
             ImmortalUntil.Remove(p.Id);
             SurviveLeft.Remove(p.Id);
+            PocketEscapesLeft.Remove(p.Id);
+
             Scp181Hints.RemoveRoleIntro(p);
+            Scp181Hints.ClearTransient(p);
+
+            // A living ex-SCP-181 would otherwise keep an hour-long damage reduction buff.
+            if (wasActive && p.IsConnected && p.IsAlive)
+                RemoveReductionEffects(p);
         }
 
         /// <summary>
-        /// 开局自动选人：先 D 级，无 D 则在 观察者(Tutorial)/科学家 中选；
-        /// 绝不让 SCP / 设施保安(MTF) 与 混沌 成为 SCP-181。
+        /// Round-start pick: Class-D first, then Tutorial/Scientist. SCPs, MTF and Chaos are never
+        /// eligible because turning them into SCP-181 would force a Class-D respawn.
         /// </summary>
         public static void TrySelectRoundStart()
         {
-            if (!Config.AutoSelectOnRoundStart) return;
-            int aliveCount = Player.List.Count(x => x.IsConnected && x.IsAlive);
-            if (aliveCount <= Config.MinPlayers) return;
+            if (!Config.AutoSelectOnRoundStart)
+                return;
 
-            var dPool = Player.List.Where(x => x.IsConnected && x.IsAlive && x.Role.Type == RoleTypeId.ClassD).ToList();
-            Player target = null;
+            List<Player> alive = Player.List.Where(x => x.IsConnected && x.IsAlive).ToList();
+            if (alive.Count <= Config.MinPlayers)
+                return;
 
-            if (dPool.Count > 0)
-                target = dPool[UnityEngine.Random.Range(0, dPool.Count)];
-            else
+            List<Player> pool = alive.Where(x => x.Role.Type == RoleTypeId.ClassD).ToList();
+            if (pool.Count == 0)
+                pool = alive.Where(x => x.Role.Type == RoleTypeId.Tutorial || x.Role.Type == RoleTypeId.Scientist).ToList();
+
+            if (pool.Count == 0)
             {
-                var fallback = Player.List.Where(x => x.IsConnected && x.IsAlive &&
-                    (x.Role.Type == RoleTypeId.Tutorial || x.Role.Type == RoleTypeId.Scientist)).ToList();
-                if (fallback.Count > 0)
-                    target = fallback[UnityEngine.Random.Range(0, fallback.Count)];
-            }
-
-            if (target == null)
-            {
-                Log.Info("[Scp181] 开局没有可选的 D 级/观察者/Scientist，本轮不生成 SCP-181");
+                Log.Info("[Scp181] No eligible Class-D/Tutorial/Scientist at round start; no SCP-181 this round.");
                 return;
             }
 
-            Assign(target);
+            Assign(pool[UnityEngine.Random.Range(0, pool.Count)]);
         }
 
+        /// <summary>Clears every SCP-181 identity and all attached state.</summary>
         public static void Clear()
         {
-            foreach (var pid in Active.Keys.ToList())
+            foreach (int id in Active.Keys.ToList())
             {
-                var p = Player.Get(pid);
-                if (p != null) Scp181Hints.RemoveRoleIntro(p);
+                Player p = Player.Get(id);
+                if (p != null)
+                {
+                    Remove(p);
+                    continue;
+                }
+
+                // The player object is already gone; drop the bookkeeping directly.
+                if (DebuffGuards.TryGetValue(id, out CoroutineHandle guard))
+                {
+                    Timing.KillCoroutines(guard);
+                    DebuffGuards.Remove(id);
+                }
+
+                Active.Remove(id);
+                ImmortalUntil.Remove(id);
+                SurviveLeft.Remove(id);
+                PocketEscapesLeft.Remove(id);
             }
+
             Active.Clear();
             ImmortalUntil.Clear();
+            SurviveLeft.Clear();
+            PocketEscapesLeft.Clear();
+
+            foreach (CoroutineHandle guard in DebuffGuards.Values)
+                Timing.KillCoroutines(guard);
+            DebuffGuards.Clear();
         }
     }
 }
