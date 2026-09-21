@@ -21,6 +21,14 @@ In-game text is Chinese by design; everything else in this repository is English
 - A player who is not already Class-D is respawned as Class-D. A Class-D target keeps their
   position and inventory.
 
+When ReinforcementsSystem is installed, automatic selection waits for its initial manager and
+spy ownership passes to finish (up to 60 seconds). Both automatic selection and `scp181 set`
+exclude players it tracks as Facility Manager, GOC spy, or reinforcement members. Rejected manual
+assignments preserve the current SCP-181. Install a ReinforcementsSystem build exposing
+`IsTrackedRole(LabApi.Features.Wrappers.Player)` and `IsInitialRoleSelectionPending`; a missing or
+failing API blocks assignment with a server error. Without ReinforcementsSystem, selection works
+standalone. This check does not prevent another plugin assigning a new role to SCP-181 later.
+
 ### Passives
 
 1. **Item duplication** — picking an item up has a `CopyChance` chance of yielding a second copy.

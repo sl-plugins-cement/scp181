@@ -86,12 +86,11 @@ namespace Scp181.Commands
                 return false;
             }
 
-            // Release the incumbent first so they do not keep the SCP-181 buffs.
-            Player current = Player.List.FirstOrDefault(Scp181Manager.IsScp181);
-            if (current != null && current.Id != target.Id)
-                Scp181Manager.Remove(current);
-
-            Scp181Manager.Assign(target);
+            if (!Scp181Manager.TryAssign(target))
+            {
+                response = "无法指派：目标已有增援特殊身份，或增援身份分配尚未就绪。";
+                return false;
+            }
             response = $"已将玩家 {target.Nickname} 设置为 SCP-181";
             return true;
         }

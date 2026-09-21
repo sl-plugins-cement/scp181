@@ -10,6 +10,7 @@ using PlayerRoles;
 using PlayerRoles.FirstPersonControl;
 using PlayerRoles.PlayableScps.Scp106;
 using Scp181.Visuals;
+using Scp181.Services;
 using UnityEngine;
 using PlayerHandler = Exiled.Events.Handlers.Player;
 using ServerHandler = Exiled.Events.Handlers.Server;
@@ -18,6 +19,7 @@ namespace Scp181.Events
 {
     public class Scp181Events
     {
+        private MEC.CoroutineHandle _selection;
         /// <summary>Inventory slots the game allows. A copy may only be granted below this.</summary>
         private const int InventoryCapacity = 8;
 
@@ -62,6 +64,7 @@ namespace Scp181.Events
 
         public void UnregisterEvents()
         {
+            CancelSelection();
             ServerHandler.RoundStarted -= OnRoundStarted;
             ServerHandler.RoundEnded -= OnRoundEnded;
             ServerHandler.RestartingRound -= OnRestartingRound;
@@ -79,30 +82,43 @@ namespace Scp181.Events
 
         private void OnRoundStarted()
         {
+            CancelSelection();
             ResetFlags();
+            _selection = MEC.Timing.RunCoroutine(SelectAfterInitialRoles());
+        }
 
-            // Give the server a moment to finish handing out round-start roles.
-            MEC.Timing.CallDelayed(1f, () =>
+        private IEnumerator<float> SelectAfterInitialRoles()
+        {
+            yield return MEC.Timing.WaitForSeconds(1f);
+            float deadline = Time.realtimeSinceStartup + 60f;
+            while (ReinforcementRoleBridge.IsSelectionPending)
             {
-                try
+                if (Time.realtimeSinceStartup >= deadline)
                 {
-                    Scp181Manager.TrySelectRoundStart();
+                    Log.Warn("[Scp181] Reinforcements role selection was not ready within 60 seconds; skipping automatic assignment.");
+                    yield break;
                 }
-                catch (Exception ex)
-                {
-                    Log.Error($"[Scp181] Round-start selection failed: {ex.Message}");
-                }
-            });
+                yield return MEC.Timing.WaitForSeconds(0.1f);
+            }
+            try { Scp181Manager.TrySelectRoundStart(); }
+            catch (Exception ex) { Log.Error($"[Scp181] Round-start selection failed: {ex.Message}"); }
+        }
+
+        private void CancelSelection()
+        {
+            MEC.Timing.KillCoroutines(_selection);
         }
 
         private void OnRoundEnded(RoundEndedEventArgs ev)
         {
+            CancelSelection();
             Scp181Manager.Clear();
             ResetFlags();
         }
 
         private void OnRestartingRound()
         {
+            CancelSelection();
             Scp181Manager.Clear();
             ResetFlags();
         }

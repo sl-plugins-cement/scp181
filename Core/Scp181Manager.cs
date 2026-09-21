@@ -6,6 +6,7 @@ using Exiled.API.Features;
 using MEC;
 using PlayerRoles;
 using Scp181.Visuals;
+using Scp181.Services;
 
 namespace Scp181
 {
@@ -87,10 +88,16 @@ namespace Scp181
         /// Makes the given living player SCP-181: Class-D body, passives attached, role card shown.
         /// Re-assigning the current SCP-181 only refreshes the card, so the command is idempotent.
         /// </summary>
-        public static void Assign(Player p)
+        public static void Assign(Player p) => TryAssign(p);
+
+        public static bool TryAssign(Player p)
         {
-            if (p == null || !p.IsConnected)
-                return;
+            if (p == null || !p.IsConnected || !p.IsAlive || !ReinforcementRoleBridge.CanAssign(p))
+                return false;
+
+            // Validate before releasing the incumbent so a rejected request changes no ownership.
+            foreach (Player current in Player.List.Where(x => x.Id != p.Id && IsScp181(x)).ToList())
+                Remove(current);
 
             if (!IsScp181(p))
             {
@@ -128,6 +135,7 @@ namespace Scp181
 
             if (Config.Debug)
                 Log.Info($"[Scp181] {p.Nickname} ({p.UserId}) is now SCP-181.");
+            return true;
         }
 
         /// <summary>
@@ -241,20 +249,21 @@ namespace Scp181
         /// </summary>
         public static void TrySelectRoundStart()
         {
-            if (!Config.AutoSelectOnRoundStart)
+            if (!Config.AutoSelectOnRoundStart || Active.Count != 0)
                 return;
 
             List<Player> alive = Player.List.Where(x => x.IsConnected && x.IsAlive).ToList();
             if (alive.Count <= Config.MinPlayers)
                 return;
 
-            List<Player> pool = alive.Where(x => x.Role.Type == RoleTypeId.ClassD).ToList();
+            List<Player> available = alive.Where(ReinforcementRoleBridge.CanAssign).ToList();
+            List<Player> pool = available.Where(x => x.Role.Type == RoleTypeId.ClassD).ToList();
             if (pool.Count == 0)
-                pool = alive.Where(x => x.Role.Type == RoleTypeId.Tutorial || x.Role.Type == RoleTypeId.Scientist).ToList();
+                pool = available.Where(x => x.Role.Type == RoleTypeId.Tutorial || x.Role.Type == RoleTypeId.Scientist).ToList();
 
             if (pool.Count == 0)
             {
-                Log.Info("[Scp181] No eligible Class-D/Tutorial/Scientist at round start; no SCP-181 this round.");
+                Log.Info("[Scp181] No unclaimed eligible Class-D/Tutorial/Scientist at round start; no SCP-181 this round.");
                 return;
             }
 
