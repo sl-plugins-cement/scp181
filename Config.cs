@@ -6,69 +6,112 @@ namespace Scp181
 {
     public class Config : IConfig
     {
-        [Description("是否启用插件")]
+        [Description("Whether the plugin is enabled.")]
         public bool IsEnabled { get; set; } = true;
 
-        [Description("调试日志")]
+        [Description("Verbose debug logging.")]
         public bool Debug { get; set; } = false;
 
-        // ---- 开局选人 ----
-        [Description("开局自动选择 SCP-181（需玩家数大于 MinPlayers）")]
+        // ---- Round-start selection ----
+        [Description("Pick an SCP-181 automatically at round start (requires more than MinPlayers alive players).")]
         public bool AutoSelectOnRoundStart { get; set; } = true;
-        [Description("开局选人所需的最少玩家数（大于此值才选）")]
+
+        [Description("Alive player count that must be EXCEEDED before a round-start SCP-181 is picked.")]
         public int MinPlayers { get; set; } = 5;
 
-        // ---- 被动概率 ----
-        [Description("复制物品并弹出提示时的概率（0-1）")]
+        // ---- Passive chances ----
+        [Description("Chance (0-1) that picking an item up also duplicates it.")]
         public float CopyChance { get; set; } = 0.1f;
-        [Description("任何来源攻击失效(免伤)的概率（0-1）")]
+
+        [Description("Chance (0-1) that an incoming attack is negated outright.")]
         public float DodgeChance { get; set; } = 0.5f;
-        [Description("伤害减免比例表：伤害来源关键词→保留的伤害比例(0.1=只留10%，0=完全无效)。\n" +
-                     "内置关键词：Firearm(枪械子弹)。也可按 SCP 角色名加项，如 \"Scp173\":0.5、\"Scp106\":0。")]
+
+        [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it).\n" +
+                     "Keys are EXILED DamageType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...).\n" +
+                     "A specific weapon type wins over the generic \"Firearm\" key; if neither matches, the\n" +
+                     "attacker's RoleTypeId name (Scp173, ChaosRifleman, ...) is tried last.")]
         public Dictionary<string, float> DamageReductionTable { get; set; } =
             new Dictionary<string, float>
             {
-                ["Firearm"] = 0.1f
+                ["Firearm"] = 0.1f,
             };
-        [Description("开启权限门 / SCP 物品柜的概率（0-1）")]
+
+        [Description("Hard cap on a single hit from any SCP. Also the damage an SCP instant-kill\n" +
+                     "(SCP-173 neck snap, SCP-049 instakill, SCP-106 grab) is converted into.")]
+        public float ScpDamageCap { get; set; } = 10f;
+
+        [Description("Chance (0-1) to force-open a keycard door or an SCP locker chamber.")]
         public float UnlockChance { get; set; } = 0.3f;
-        [Description("绝境生还次数：受致命伤害时以1血存活的次数上限（用一次少一次）")]
+
+        [Description("Seconds before a failed unlock roll on the same door/chamber may be rolled again.\n" +
+                     "Without this, spamming the interact key converges on a guaranteed open.")]
+        public float UnlockRerollCooldownSeconds { get; set; } = 8f;
+
+        [Description("Last-stand charges: number of times a lethal hit is survived with 1 HP instead.")]
         public int SurviveChances { get; set; } = 1;
-        [Description("绝境生还后获得免伤的持续时间（秒）")]
+
+        [Description("Seconds of full immunity granted right after a last stand.")]
         public float SurviveImmunitySeconds { get; set; } = 1.5f;
-        [Description("复制物品提示的显示时长（秒）")]
+
+        [Description("Number of guaranteed escapes from a lethal Pocket Dimension outcome, per round.")]
+        public int PocketEscapeChances { get; set; } = 1;
+
+        [Description("Intensity of the permanent DamageReduction effect. The game computes the kept\n" +
+                     "damage as 1 - intensity * 0.005, so 50 = 25% less damage and 200 = immune.")]
+        public byte DamageReductionIntensity { get; set; } = 50;
+
+        [Description("Intensity of the permanent BodyshotReduction effect. The game clamps this to its\n" +
+                     "5-entry table, so anything at or above 4 is the maximum 15% body-shot reduction.")]
+        public byte BodyshotReductionIntensity { get; set; } = 4;
+
+        [Description("Display time (seconds) of the item-duplication hint.")]
         public float CopyMsgSeconds { get; set; } = 3f;
-        [Description("免伤提示(给攻击者)的倒计时秒数")]
+
+        [Description("Countdown length (seconds) of the dodge hint shown to the attacker.")]
         public float DodgeMsgSeconds { get; set; } = 5f;
-        [Description("绝境生还提示持续秒数")]
+
+        [Description("Display time (seconds) of the last-stand hint.")]
         public float SurviveMsgSeconds { get; set; } = 3f;
 
-        // ---- 配色 ----
-        [Description("SCP-181 标题色（D 级时期）")]
+        // ---- Colors ----
+        [Description("Role card color while SCP-181 is Class-D.")]
         public string ScpColor { get; set; } = "#FF9500";
-        [Description("撤离为九尾狐后的 SCP-181 标题色")]
+
+        [Description("Role card color after SCP-181 escapes as MTF.")]
         public string NtfColor { get; set; } = "#4DA6FF";
-        [Description("撤离为混沌后的 SCP-181 标题色")]
+
+        [Description("Role card color after SCP-181 escapes as Chaos Insurgency.")]
         public string ChaosColor { get; set; } = "#1E6B3A";
 
-        // ---- HSM 坐标 ----
-        [Description("角色介绍 HSM Y 坐标（底部偏上）")]
+        // ---- Hint coordinates ----
+        [Description("HSM Y coordinate of the persistent role card.")]
         public float RoleIntroY { get; set; } = 900f;
-        [Description("免伤提示(给攻击者) HSM Y 坐标（中心偏下）")]
+
+        [Description("HSM Y coordinate of the dodge hint shown to the attacker.")]
         public float DodgeMsgY { get; set; } = 800f;
-        [Description("绝境生还提示(给SCP181) HSM Y 坐标")]
+
+        [Description("HSM Y coordinate of the last-stand hint shown to SCP-181.")]
         public float SurviveMsgY { get; set; } = 780f;
 
-        // ---- 死亡广播 ----
-        [Description("SCP-181 死亡 Cassie TTS(朗读)文本")]
+        // ---- Death broadcast ----
+        [Description("CASSIE announcement played when SCP-181 dies.")]
         public string CassieTransmission { get; set; } = ".G5 SCP 1 8 1 HAS BEEN CONTAINED SUCCESSFULLY .G6";
-        [Description("SCP-181 死亡 Cassie 屏幕字幕")]
+
+        [Description("CASSIE subtitle shown alongside the announcement.")]
         public string CassieSubtitles { get; set; } = "SCP-181 已被重新收容";
-        [Description("SCP-181 死亡全体公告（{name} 会被替换为杀死 181 的玩家昵称）")]
-        public string DeathAnnounce { get; set; } = "<b>[<color=#FF9500>SCP181</color>]已被重新收容，收容大蛇[<color=#8DEEEE>{name}</color></b>]";
-        [Description("SCP-181 死亡公告持续秒数")]
+
+        [Description("Server-wide broadcast when SCP-181 dies. {name} is replaced with the killer's nickname.")]
+        public string DeathAnnounce { get; set; } = "<b>[<color=#FF9500>SCP181</color>]已被重新收容，收容者[<color=#8DEEEE>{name}</color>]</b>";
+
+        [Description("Duration (seconds) of the death broadcast.")]
         public float DeathAnnounceSeconds { get; set; } = 8f;
-        [Description("SCP-181 死亡公告是否发送 CASSIE 朗读")]
+
+        [Description("Whether the death broadcast is accompanied by the CASSIE announcement.")]
         public bool DiedCassieEnable { get; set; } = true;
+
+        // ---- Hint display ----
+        [Description("HintServiceMeow display settings. Hints are disabled entirely when HSM is missing\n" +
+                     "unless EnableVanillaFallback is turned on.")]
+        public HintDisplayConfig HintDisplay { get; set; } = new HintDisplayConfig();
     }
 }

@@ -1,117 +1,133 @@
-using System.Collections;
 using System.Collections.Generic;
 using Exiled.API.Features;
 using MEC;
+using Scp181.Services;
+using UnityEngine;
+using LabPlayer = LabApi.Features.Wrappers.Player;
 
 namespace Scp181.Visuals
 {
-    /// <summary>SCP-181 当前立场所对应的角色介绍配色状态。</summary>
+    /// <summary>Which side SCP-181 currently counts as, for the role card color.</summary>
     public enum Scp181Team
     {
         D,
         Ntf,
-        Chaos
+        Chaos,
     }
 
     /// <summary>
-    /// SCP-181 视觉提示。
-    /// — 角色介绍：屏幕底部偏上常驻两行（D/九尾/混沌配色不同）。
-    /// — 免伤提示：给攻击者，中心偏下短暂显示。
-    /// — 绝境生还提示：给 SCP-181 本人，中心偏下短暂显示。
+    /// SCP-181's on-screen text, all of it routed through the shared hint display provider:
+    /// the role card (persistent, bottom of the screen), the dodge notice shown to the attacker,
+    /// the last-stand notice and the item duplication notice.
     /// </summary>
     public static class Scp181Hints
     {
-        public const string RoleGroup = "scp181.role";
-        public const string DodgeGroup = "scp181.dodge";
-        public const string SurviveGroup = "scp181.survive";
-        public const string CopyGroup = "scp181.copy";
+        private const string RoleTag = "role";
+        private const string DodgeTag = "dodge";
+        private const string SurviveTag = "survive";
+        private const string CopyTag = "copy";
 
-        private static Config Config => MainClass.Instance.Config;
+        private static Config Config => MainClass.Instance!.Config;
 
-        /// <summary>角色介绍（底部常驻，撤离后按配色切换）。</summary>
+        private static IHintDisplayProvider? Hints => MainClass.Instance?.Hints;
+
+        /// <summary>Persistent role card; the color follows the side SCP-181 currently counts as.</summary>
         public static void ShowRoleIntro(Player p, Scp181Team team)
         {
-            if (p == null) return;
-            string color = TeamColor(team);
-            string text =
-                $"你是[<color={color}>SCP181</color>]\n" +
-                "<size=22><color=#E7ECF3>你拥有非常逆天的免伤,拾取物品时有概率复制一份,要在设施里尽力苟活口牙</color></size>";
-            if (HsmHelper.ShowHint(p, text, Config.RoleIntroY, 26, "role", RoleGroup))
+            LabPlayer? target = Wrap(p);
+            if (target == null)
                 return;
-            p.Broadcast(10, text);
+
+            string text =
+                $"你是[<color={TeamColor(team)}>SCP181</color>]\n" +
+                "<size=22><color=#E7ECF3>你拥有非常逆天的免伤,拾取物品时有概率复制一份,要在设施里尽力苟活口牙</color></size>";
+
+            Hints?.ShowPersistentPrompt(target, RoleTag, Config.RoleIntroY, text, HintVerticalAnchor.Middle);
         }
 
         public static void RemoveRoleIntro(Player p)
-            => HsmHelper.RemoveHint(p, "role", RoleGroup);
+        {
+            LabPlayer? target = Wrap(p);
+            if (target != null)
+                Hints?.Remove(target, RoleTag);
+        }
 
-        /// <summary>免伤提示（给攻击者，中心偏下带 5 秒倒计时，结束后自动清除）。</summary>
+        /// <summary>Dodge notice for the attacker, counting down to its own removal.</summary>
         public static void ShowDodgeMsg(Player attacker)
         {
-            if (attacker == null) return;
-            Timing.RunCoroutine(DodgeCountdown(attacker));
+            if (attacker != null)
+                Timing.RunCoroutine(DodgeCountdown(attacker));
         }
 
         private static IEnumerator<float> DodgeCountdown(Player p)
         {
-            const string id = "dodge";
-            const string grp = DodgeGroup;
-            int total = (int)Config.DodgeMsgSeconds;
+            int total = Mathf.Max(1, (int)Config.DodgeMsgSeconds);
             for (int i = total; i >= 1; i--)
             {
-                if (p == null || !p.IsConnected)
+                LabPlayer? target = Wrap(p);
+                if (target == null || !p.IsConnected)
                     yield break;
 
                 string text = $"<size=28><color=#FF9500>[{i}]对方是SCP-181,免疫了你的伤害嘻嘻(^_^)</color></size>";
-                if (!HsmHelper.ShowHint(p, text, Config.DodgeMsgY, 22, id, grp))
-                    p.ShowHint(text, 1f);
+
+                // A slightly longer duration than the tick keeps the hint alive between updates and
+                // still expires on its own if the countdown is cut short.
+                Hints?.ShowPrompt(target, DodgeTag, Config.DodgeMsgY, text, 1.5f, HintVerticalAnchor.Middle);
 
                 yield return Timing.WaitForSeconds(1f);
             }
-            if (p != null && p.IsConnected)
-                HsmHelper.RemoveHint(p, id, grp);
+
+            LabPlayer? final = Wrap(p);
+            if (final != null)
+                Hints?.Remove(final, DodgeTag);
         }
 
-        /// <summary>绝境生还提示（给 SCP-181 本人）。</summary>
+        /// <summary>Last-stand notice for SCP-181.</summary>
         public static void ShowSurviveMsg(Player p)
         {
-            if (p == null) return;
-            string text = "<size=30><color=#5BFF80>幸运眷顾！你以1点血扛下了这次致命伤害</color></size>";
-            if (HsmHelper.ShowHint(p, text, Config.SurviveMsgY, 24, "survive", SurviveGroup))
-            {
-                Timing.RunCoroutine(RemoveAfter(p, "survive", SurviveGroup, Config.SurviveMsgSeconds));
+            LabPlayer? target = Wrap(p);
+            if (target == null)
                 return;
-            }
-            p.ShowHint(text, Config.SurviveMsgSeconds);
+
+            Hints?.ShowPrompt(
+                target,
+                SurviveTag,
+                Config.SurviveMsgY,
+                "<size=30><color=#5BFF80>幸运眷顾！你以1点血扛下了这次致命伤害</color></size>",
+                Config.SurviveMsgSeconds,
+                HintVerticalAnchor.Middle);
         }
 
-        /// <summary>复制物品提示（给 SCP-181 本人，位置与免伤提示相同：中心偏下）。</summary>
+        /// <summary>Item duplication notice for SCP-181.</summary>
         public static void ShowCopyMsg(Player p)
         {
-            if (p == null) return;
-            string text = $"[<color={Config.ScpColor}>SCP-181</color>]<color=#9EDC9E>运气不错!</color>物品数量+1";
-            if (HsmHelper.ShowHint(p, text, Config.DodgeMsgY, 22, "copy", CopyGroup))
-            {
-                Timing.RunCoroutine(RemoveAfter(p, "copy", CopyGroup, Config.CopyMsgSeconds));
+            LabPlayer? target = Wrap(p);
+            if (target == null)
                 return;
-            }
-            p.ShowHint(text, Config.CopyMsgSeconds);
+
+            Hints?.ShowPrompt(
+                target,
+                CopyTag,
+                Config.DodgeMsgY,
+                $"[<color={Config.ScpColor}>SCP-181</color>]<color=#9EDC9E>运气不错!</color>物品数量+1",
+                Config.CopyMsgSeconds,
+                HintVerticalAnchor.Middle);
         }
 
-        /// <summary>玩家死亡/离场时清除临时的免伤、生还、复制提示，避免残留。</summary>
+        /// <summary>Drops the short-lived notices so nothing lingers after a death or a disconnect.</summary>
         public static void ClearTransient(Player p)
         {
-            if (p == null) return;
-            HsmHelper.RemoveHint(p, "dodge", DodgeGroup);
-            HsmHelper.RemoveHint(p, "survive", SurviveGroup);
-            HsmHelper.RemoveHint(p, "copy", CopyGroup);
+            LabPlayer? target = Wrap(p);
+            if (target == null)
+                return;
+
+            Hints?.Remove(target, DodgeTag);
+            Hints?.Remove(target, SurviveTag);
+            Hints?.Remove(target, CopyTag);
         }
 
-        private static IEnumerator<float> RemoveAfter(Player p, string id, string group, float seconds)
-        {
-            yield return Timing.WaitForSeconds(seconds);
-            if (p == null) yield break;
-            HsmHelper.RemoveHint(p, id, group);
-        }
+        private static LabPlayer? Wrap(Player? p)
+            => p?.ReferenceHub == null ? null : LabPlayer.Get(p.ReferenceHub);
 
         private static string TeamColor(Scp181Team team)
         {

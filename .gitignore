@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Local reference/dependency drops
+packages/
+*.dll
+*.pdb
+
+# OS / editor noise
+.idea/
+Thumbs.db
+Desktop.ini

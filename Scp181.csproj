@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Scp181</AssemblyName>
+    <RootNamespace>Scp181</RootNamespace>
+    <Version>1.1.0</Version>
+    <Authors>ArcaneStrike</Authors>
+    <Product>Scp181</Product>
+    <Description>SCP:SL role plugin: SCP-181 "Lucky Charm" for EXILED.</Description>
+    <Copyright>Copyright (c) 2026 sl-plugins-cement</Copyright>
+
+    <!--
+      Override on the command line when the game or EXILED lives somewhere else, e.g.
+        dotnet build -c Release -p:SCP_SL_MANAGED="D:\srv\SCPSL_Data\Managed"
+      EXILED_REFS defaults to the per-user LabAPI install that the EXILED installer writes to.
+    -->
+    <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">C:\Program Files (x86)\Steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed</SCP_SL_MANAGED>
+    <EXILED_REFS Condition="'$(EXILED_REFS)' == ''">$(APPDATA)\SCP Secret Laboratory\LabAPI\dependencies\global</EXILED_REFS>
+    <EXILED_PLUGINS Condition="'$(EXILED_PLUGINS)' == ''">$(APPDATA)\EXILED\Plugins</EXILED_PLUGINS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp" HintPath="$(SCP_SL_MANAGED)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="Assembly-CSharp-firstpass" HintPath="$(SCP_SL_MANAGED)\Assembly-CSharp-firstpass.dll" Private="false" />
+    <Reference Include="CommandSystem.Core" HintPath="$(SCP_SL_MANAGED)\CommandSystem.Core.dll" Private="false" />
+    <Reference Include="LabApi" HintPath="$(SCP_SL_MANAGED)\LabApi.dll" Private="false" />
+    <Reference Include="Mirror" HintPath="$(SCP_SL_MANAGED)\Mirror.dll" Private="false" />
+    <Reference Include="Pooling" HintPath="$(SCP_SL_MANAGED)\Pooling.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(SCP_SL_MANAGED)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SCP_SL_MANAGED)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(SCP_SL_MANAGED)\UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="Exiled.API" HintPath="$(EXILED_REFS)\Exiled.API.dll" Private="false" />
+    <Reference Include="Exiled.Events" HintPath="$(EXILED_PLUGINS)\Exiled.Events.dll" Private="false" />
+  </ItemGroup>
+
+</Project>
