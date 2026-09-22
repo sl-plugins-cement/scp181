@@ -175,6 +175,8 @@ namespace Scp181.Events
             // Post-last-stand immunity window: nothing lands at all.
             if (Scp181Manager.InSurviveImmunity(victim))
             {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] {victim.Nickname} ignored {damageType} ({ev.Amount:F2}) during last-stand immunity.");
                 Deny(ev, victim);
                 return;
             }
@@ -258,12 +260,18 @@ namespace Scp181.Events
                 return;
 
             if (!Scp181Manager.TryUseSurvive(victim))
+            {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] {victim.Nickname} dies to {damage.GetType().Name} ({damage.Damage:F2}); no last-stand charge left.");
                 return;
+            }
 
             victim.Health = 1f;
             ev.IsAllowed = false;
             Scp181Manager.GrantSurviveImmunity(victim, Config.SurviveImmunitySeconds);
             Scp181Hints.ShowSurviveMsg(victim);
+            if (Config.Debug)
+                Log.Debug($"[Scp181] {victim.Nickname} survived {damage.GetType().Name} ({damage.Damage:F2}) on 1 HP; immune for {Config.SurviveImmunitySeconds:F1}s.");
         }
 
         private static void Deny(HurtingEventArgs ev, Player victim)

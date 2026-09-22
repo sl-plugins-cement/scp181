@@ -8,6 +8,7 @@ using Mirror;
 using PlayerRoles;
 using PlayerRoles.PlayableScps.Scp049;
 using PlayerRoles.PlayableScps.Scp106;
+using PlayerRoles.PlayableScps.Scp3114;
 using PlayerStatsSystem;
 using RelativePositioning;
 using UnityEngine;
@@ -32,12 +33,18 @@ public sealed class ProbeCommand : ICommand
 {
     public string Command => "damageprobe";
     public string[] Aliases => Array.Empty<string>();
-    public string Description => "Local QA: state/damage/sethp/escape/protect/cancelrole/place/attack106/attack049";
+    public string Description => "Local QA: list/state/damage/sethp/escape/protect/cancelrole/place/attack106/attack049/attack3114";
     public bool Execute(ArraySegment<string> args, ICommandSender sender, out string response)
     {
         if (!sender.CheckPermission(PlayerPermissions.PlayersManagement, out response)) return false;
-        if (args.Count < 2) { response = "action player-id [value]"; return false; }
+        if (args.Count >= 1 && args.At(0) == "list")
+        {
+            response = string.Join(" | ", System.Linq.Enumerable.Select(Player.List, x => $"{x.PlayerId}:{x.Nickname}:{x.Role}:{x.Health:F0}"));
+            return true;
+        }
+        if (args.Count < 2) { response = "list | action player-id [value]"; return false; }
         var p = Player.Get(int.Parse(args.At(1)));
+        if (p == null) { response = "no player with id " + args.At(1); return false; }
         switch (args.At(0))
         {
             case "damage": p.ReferenceHub.playerStats.DealDamage(new UniversalDamageHandler(float.Parse(args.At(2)), DeathTranslations.Falldown)); break;
@@ -79,12 +86,27 @@ public sealed class ProbeCommand : ICommand
                 NetworkWriterPool.Return(w);
                 break;
             }
+            // attack3114 <scp id> <target id>: arm the strangle window, then feed Scp3114Strangle the client payload.
+            case "attack3114":
+            {
+                var t = Player.Get(int.Parse(args.At(2)));
+                if (p.RoleBase is not Scp3114Role role || !role.SubroutineModule.TryGetSubroutine<Scp3114Strangle>(out var strangle)) { response = "not SCP-3114"; return false; }
+                strangle.StrangleTimer.Trigger(12.0);
+                var w = NetworkWriterPool.Get();
+                w.WriteReferenceHub(t.ReferenceHub);
+                w.WriteRelativePosition(new RelativePosition(t.Position));
+                w.WriteRelativePosition(new RelativePosition(p.Position));
+                strangle.ServerProcessCmd(new NetworkReader(w.ToArraySegment()));
+                NetworkWriterPool.Return(w);
+                response = $"strangle target={(strangle.SyncTarget.HasValue ? "set" : "none")}";
+                return true;
+            }
         }
         var effects = p.ReferenceHub.playerEffectsController;
         string room = p.Room?.Name.ToString() ?? "none";
         response = $"id={p.PlayerId} role={p.Role} hp={p.Health:F1} room={room} ensnared={effects.GetEffect<CustomPlayerEffects.Ensnared>().Intensity} reduction={effects.GetEffect<CustomPlayerEffects.DamageReduction>().Intensity}"
             + $" corroding={effects.GetEffect<CustomPlayerEffects.Corroding>().IsEnabled} pocket={effects.GetEffect<CustomPlayerEffects.PocketCorroding>().IsEnabled} cardiac={effects.GetEffect<CustomPlayerEffects.CardiacArrest>().IsEnabled}"
-            + $" traumatized={effects.GetEffect<CustomPlayerEffects.Traumatized>().IsEnabled} bleeding={effects.GetEffect<CustomPlayerEffects.Bleeding>().IsEnabled}";
+            + $" traumatized={effects.GetEffect<CustomPlayerEffects.Traumatized>().IsEnabled} bleeding={effects.GetEffect<CustomPlayerEffects.Bleeding>().IsEnabled} strangled={effects.GetEffect<CustomPlayerEffects.Strangled>().IsEnabled}";
         return true;
     }
 }
