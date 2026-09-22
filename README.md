@@ -43,8 +43,11 @@ standalone. This check does not prevent another plugin assigning a new role to S
    instant-kill abilities (SCP-173's neck snap, SCP-049's instakill, SCP-106's grab), which are
    converted into capped damage instead of a guaranteed death.
 5. **Status effect immunity** — damage-over-time from bleeding, poison, hypothermia and similar
-   status effects never lands. Damaging debuffs are stripped twice a second; shared movement
-   effects (`Ensnared` and `Concussed`) are preserved.
+   status effects never lands, and those debuffs are stripped twice a second. SCP attack states
+   are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and the Pocket Dimension run
+   their course, and their damage takes the SCP mitigation above. SCP-3114's strangulation is
+   reduced and capped but never dodged, because the hold breaks as soon as a tick is refused.
+   Shared movement effects (`Ensnared` and `Concussed`) are preserved.
 6. **Last stand** — a lethal hit is survived on 1 HP, `SurviveChances` times per assignment,
    followed by `SurviveImmunitySeconds` of full immunity. Lethality is evaluated after native damage reduction and shields.
 7. **Pocket Dimension escape** — the first lethal Pocket Dimension outcome per assignment is

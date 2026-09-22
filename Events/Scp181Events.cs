@@ -180,7 +180,11 @@ namespace Scp181.Events
             }
 
             // Damage-over-time from a status effect (bleeding, poison, hypothermia, ...) never lands.
-            if (damageType.IsStatusEffect())
+            // SCP-3114's strangulation is excluded: it is an SCP attack streamed per frame, and the
+            // hold ends as soon as one tick is refused (Strangled.ServerUpdate). It only takes the
+            // mitigation below and is never dodged.
+            bool strangled = damageType == DamageType.Strangled;
+            if (!strangled && damageType.IsStatusEffect())
             {
                 Deny(ev, victim);
                 return;
@@ -231,7 +235,7 @@ namespace Scp181.Events
                 ev.Amount = Config.ScpDamageCap;
 
             // Flat dodge chance against everything that got this far.
-            if (UnityEngine.Random.value < Config.DodgeChance)
+            if (!strangled && UnityEngine.Random.value < Config.DodgeChance)
             {
                 Deny(ev, victim);
                 if (hasAttacker)
@@ -312,6 +316,8 @@ namespace Scp181.Events
                 }
 
                 fpcRole.FpcModule.ServerOverridePosition(Scp106PocketExitFinder.GetBestExitPosition(fpcRole));
+                p.DisableEffect(EffectType.PocketCorroding);
+                p.DisableEffect(EffectType.Corroding);
                 Scp181Manager.ClearScpDebuffs(p);
                 p.EnableEffect(EffectType.Disabled, 10f, addDurationIfActive: true);
                 p.EnableEffect(EffectType.Traumatized);

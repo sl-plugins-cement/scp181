@@ -32,11 +32,15 @@ namespace Scp181
         /// <summary>Running debuff-guard coroutines, so a re-assign cannot stack a second one.</summary>
         private static readonly Dictionary<int, CoroutineHandle> DebuffGuards = new Dictionary<int, CoroutineHandle>();
 
+        /// <summary>
+        /// Damaging debuffs SCP-181 shrugs off. SCP attack states are deliberately absent:
+        /// SCP-049's instant kill is gated on <c>CardiacArrest</c> (Scp049AttackAbility) and
+        /// SCP-106's Pocket Dimension capture on <c>Corroding</c> (Scp106Attack), while
+        /// <c>PocketCorroding</c> is the Pocket Dimension itself. Stripping those left both SCPs
+        /// unable to finish their attacks.
+        /// </summary>
         private static readonly EffectType[] ClearedDebuffs =
         {
-            EffectType.CardiacArrest,
-            EffectType.Corroding,
-            EffectType.PocketCorroding,
             EffectType.Bleeding,
             EffectType.Poisoned,
             EffectType.Hemorrhage,
@@ -172,7 +176,7 @@ namespace Scp181
             }
         }
 
-        /// <summary>Clears the status effects SCP-181 is immune to (SCP debuffs plus Pocket Dimension decay).</summary>
+        /// <summary>Clears the damaging debuffs SCP-181 is immune to. SCP attack states are left alone.</summary>
         public static void ClearScpDebuffs(Player p)
         {
             if (p == null || !p.IsConnected)
