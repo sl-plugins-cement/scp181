@@ -18,7 +18,7 @@ In-game text is Chinese by design; everything else in this repository is English
   otherwise Tutorial/Scientist. SCPs, MTF and Chaos are never eligible.
 - `scp181 set <name/id>` assigns the role manually. The command requires the RA
   **PlayersManagement** permission. Assigning another player does not remove existing SCP-181s.
-- Multiple SCP-181 players can coexist, each with independent survival charges, effects and badges.
+- Multiple SCP-181 players can coexist, each with independent survival charges, effects and identity lines.
   `scp181 status` lists them all; `scp181 clear` removes all of them.
   Reassigning an existing SCP-181 refreshes their presentation without refilling charges.
 - A player who is not already Class-D is respawned as Class-D. A Class-D target keeps their
@@ -32,14 +32,15 @@ assignments preserve existing SCP-181 players. Install a ReinforcementsSystem bu
 failing API blocks assignment with a server error. Without ReinforcementsSystem, selection works
 standalone. This check does not prevent another plugin assigning a new role to SCP-181 later.
 
-### Orange name tag and player-list badge
+### Orange identity line
 
-While assigned, the player has the native orange `SCP-181` badge, visible above their name
-and beside their name in the **N** server/player list. It stays orange after escape; HUD role
-card colors can still change with the team. The original badge text, color and visibility are
-restored on removal, death, reassignment, round end or plugin disable, unless another plugin
-has replaced the badge. This changes display fields only and does not grant RA permissions.
-Native name-tag visibility rules (distance, line of sight, etc.) still apply.
+While assigned, the player's look-at panel shows a bold orange `SCP-181` line under their
+nickname, using the native custom-info field like ReinforcementsSystem's faction line. The
+group badge (PlayerBadge, RA groups) is left untouched, and the line does not appear in the
+**N** player list. It stays after escape; HUD role card colors can still change with the team.
+The original custom info and its visibility are restored on removal, death, reassignment, round
+end or plugin disable, unless another plugin has replaced the line. Native look-at visibility
+rules (distance, line of sight, etc.) still apply.
 
 ### Passives
 
@@ -137,7 +138,7 @@ Install `bin/Release/net48/Scp181.dll` in the server's
 `%APPDATA%/SCP Secret Laboratory/LabAPI/plugins/global/` (or `plugins/<port>/`) and restart.
 Remove the previous SCP-181 plugin from its old loader directory before using this build.
 Only the plugin DLL is needed; do not copy the game reference assemblies.
-HintServiceMeow is optional and must be a LabAPI-compatible build; the badge and passives
+HintServiceMeow is optional and must be a LabAPI-compatible build; the identity line and passives
 work without it. HUD hints follow the fallback option described above.
 
 See `tests/README.md` for offline regression checks and the in-game checklist.

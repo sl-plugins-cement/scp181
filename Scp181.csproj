@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Scp181</AssemblyName>
     <RootNamespace>Scp181</RootNamespace>
-    <Version>2.0.2</Version>
+    <Version>2.0.3</Version>
     <Authors>ArcaneStrike</Authors>
     <Product>Scp181</Product>
     <Description>SCP:SL role plugin: SCP-181 "Lucky Charm" for LabAPI.</Description>

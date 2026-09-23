@@ -56,33 +56,33 @@ Build the optional probe against the same server with:
 dotnet build tests/DamageProbe.csproj -c Release -p:Game="D:\steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed"
 ```
 
-## Name tag and migration client checklist
+## Identity line and migration client checklist
 
 Use an isolated server with LabAPI only and two clients. Set `copy_chance` and `unlock_chance`
 to 1 for deterministic positive cases; set `dodge_chance` to 0 for damage checks.
 
 1. Assign a living Class-D with `scp181 set <id>`. From the other client, look at their name
-   tag and press N: both should show the orange `SCP-181` badge. A late-joining viewer should
-   see the same badge. Check names containing spaces with `scp181 set <full nickname>`.
-2. Assign A, then B: both must keep SCP-181 badges, buffs and role hints. `scp181 status`
+   look-at panel: it should show the orange `SCP-181` line, and their PlayerBadge badge must be
+   unchanged. A late-joining viewer should see the same line. Check names containing spaces with `scp181 set <full nickname>`.
+2. Assign A, then B: both must keep SCP-181 identity lines, buffs and role hints. `scp181 status`
    must list both. Spend A's survival charge and verify B's charge is unaffected. Reassign A:
    B must remain SCP-181 and A's charges must not refill. Kill or change A's role: only A
    loses the identity. `scp181 clear` must remove all remaining SCP-181s.
    With a fresh config, the role introduction must use HSM Y=1000.
-3. Begin with an existing colored admin badge, assign SCP-181, then run `scp181 clear`.
-   Original badge text/color/visibility must return, and RA permissions must be unchanged.
+3. Begin with a PlayerBadge or RA badge, assign SCP-181, then run `scp181 clear`. The badge
+   must never change; the original custom info and its visibility must return.
 4. Repeat cleanup through death, role reassignment, round end,
-   disconnect/reconnect and plugin disable. No SCP-181 badge or reduction effect should remain.
-   `damageprobe state <id>` prints badge text, color and info-area flags for server inspection.
-5. Escape to MTF or Chaos: badge stays orange while the HUD card changes team color. A
-   cancelled role change must retain the current identity and badge.
+   disconnect/reconnect and plugin disable. No SCP-181 line or reduction effect should remain.
+   `damageprobe state <id>` prints custom info, badge text and info-area flags for server inspection.
+5. Escape to MTF or Chaos: the line stays orange while the HUD card changes team color. A
+   cancelled role change must retain the current identity and line.
 6. With 6 inventory items, a pickup adds the original and one copy; with 7, it adds only
    the original; with 8, it cannot add anything. Cancelled pickups grant no copy.
 7. Unlocked keycard doors/lockers can open without a keycard. SCP-079 gates/armory and locked
    doors cannot. Another plugin cancelling the event must still block interaction. Set chance
    to 0 and verify the failed-roll cooldown is respected.
 8. Check death broadcast/subtitles and SCP damage/last-stand/pocket cases above. With no HSM,
-   badge/passives must work; enabling vanilla fallback must keep the role hint refreshed.
+   identity line/passives must work; enabling vanilla fallback must keep the role hint refreshed.
 
 ## Verification record — 2026-09-23
 

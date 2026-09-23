@@ -15,9 +15,9 @@ namespace Scp181
 
         public override string Author => "ArcaneStrike";
 
-        public override string Description => "SCP-181 Lucky Charm role with survival passives and an orange badge.";
+        public override string Description => "SCP-181 Lucky Charm role with survival passives and an orange look-at identity line.";
 
-        public override Version Version => new Version(2, 0, 2);
+        public override Version Version => new Version(2, 0, 3);
 
         public override Version RequiredApiVersion => new Version(1, 1, 7);
 

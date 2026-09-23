@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.3
+
+- Show SCP-181 as an orange look-at custom-info line, following ReinforcementsSystem's identity
+  pattern, instead of overwriting the group badge, which conflicted with PlayerBadge.
+
 ## 2.0.2
 
 - Keep every config description on one line. LabAPI comments only the first line of a
