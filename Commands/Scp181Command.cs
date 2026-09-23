@@ -2,16 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CommandSystem;
-using Exiled.API.Features;
+using LabApi.Features.Wrappers;
+using Log = LabApi.Features.Console.Logger;
 
 namespace Scp181.Commands
 {
     /// <summary>
     /// Remote Admin management command. Requires the PlayersManagement permission, so an operator
     /// with unrelated RA access cannot hand the role out.
-    ///   scp181 set {name/id} - make the given player SCP-181 (the previous one is released first)
-    ///   scp181 clear         - release the current SCP-181
-    ///   scp181 status        - show who is currently SCP-181
+    ///   scp181 set {name/id} - make the given player SCP-181 without replacing anyone else
+    ///   scp181 clear         - release all SCP-181 players
+    ///   scp181 status        - list all current SCP-181 players
     /// </summary>
     [CommandHandler(typeof(RemoteAdminCommandHandler))]
     public class Scp181Command : ICommand
@@ -26,6 +27,12 @@ namespace Scp181.Commands
 
         public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
         {
+            if (MainClass.Instance == null)
+            {
+                response = "SCP-181 插件未启用";
+                return false;
+            }
+
             if (!sender.CheckPermission(PlayerPermissions.PlayersManagement, out response))
                 return false;
 
@@ -45,7 +52,7 @@ namespace Scp181.Commands
 
                     case "clear":
                         Scp181Manager.Clear();
-                        response = "已清除当前 SCP-181";
+                        response = "已清除所有 SCP-181";
                         return true;
 
                     case "status":
@@ -73,8 +80,11 @@ namespace Scp181.Commands
                 return false;
             }
 
-            Player target = Player.Get(ids[0].TrimStart('@'));
-            if (target == null || !target.IsConnected)
+            string query = string.Join(" ", ids).TrimStart('@');
+            Player? target = int.TryParse(query, out int id)
+                ? Player.Get(id)
+                : Player.Get(query) ?? Player.GetByNickname(query);
+            if (target == null || target.IsDestroyed)
             {
                 response = $"找不到玩家：{string.Join(" ", ids)}";
                 return false;
@@ -88,7 +98,7 @@ namespace Scp181.Commands
 
             if (!Scp181Manager.TryAssign(target))
             {
-                response = "无法指派：目标已有增援特殊身份，或增援身份分配尚未就绪。";
+                response = "无法指派：目标已有增援特殊身份、增援分配未就绪，或角色转换被阻止。";
                 return false;
             }
             response = $"已将玩家 {target.Nickname} 设置为 SCP-181";
@@ -97,10 +107,11 @@ namespace Scp181.Commands
 
         private static string Status()
         {
-            Player current = Player.List.FirstOrDefault(Scp181Manager.IsScp181);
-            return current == null
+            List<Player> current = Player.List.Where(Scp181Manager.IsScp181).OrderBy(p => p.PlayerId).ToList();
+            return current.Count == 0
                 ? "当前没有 SCP-181"
-                : $"当前 SCP-181: {current.Nickname} ({current.UserId})";
+                : $"当前 SCP-181（{current.Count} 人）：\n" + string.Join("\n",
+                    current.Select(p => $"{p.Nickname} (ID: {p.PlayerId}, {p.UserId})"));
         }
     }
 }

@@ -1,5 +1,5 @@
 using System;
-using Exiled.API.Features;
+using LabApi.Loader.Features.Plugins;
 using Scp181.Events;
 using Scp181.Services;
 
@@ -15,17 +15,19 @@ namespace Scp181
 
         public override string Author => "ArcaneStrike";
 
-        public override string Prefix => "scp181";
+        public override string Description => "SCP-181 Lucky Charm role with survival passives and an orange badge.";
 
-        public override Version Version => new Version(1, 1, 0);
+        public override Version Version => new Version(2, 0, 1);
 
-        public override Version RequiredExiledVersion => new Version(9, 14, 0);
+        public override Version RequiredApiVersion => new Version(1, 1, 7);
 
         /// <summary>Shared hint display layer; a null provider when HintServiceMeow is missing.</summary>
         internal IHintDisplayProvider Hints { get; private set; } = null!;
 
-        public override void OnEnabled()
+        public override void Enable()
         {
+            if (!Config.IsEnabled || Instance == this)
+                return;
             Instance = this;
 
             Hints = HintDisplayProviderFactory.Create(Config.HintDisplay);
@@ -33,11 +35,9 @@ namespace Scp181
 
             events = new Scp181Events();
             events.RegisterEvents();
-
-            base.OnEnabled();
         }
 
-        public override void OnDisabled()
+        public override void Disable()
         {
             events?.UnregisterEvents();
             events = null;
@@ -49,8 +49,6 @@ namespace Scp181
 
             if (ReferenceEquals(Instance, this))
                 Instance = null;
-
-            base.OnDisabled();
         }
     }
 }

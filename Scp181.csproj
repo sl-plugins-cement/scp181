@@ -6,20 +6,15 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Scp181</AssemblyName>
     <RootNamespace>Scp181</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>2.0.1</Version>
     <Authors>ArcaneStrike</Authors>
     <Product>Scp181</Product>
-    <Description>SCP:SL role plugin: SCP-181 "Lucky Charm" for EXILED.</Description>
+    <Description>SCP:SL role plugin: SCP-181 "Lucky Charm" for LabAPI.</Description>
     <Copyright>Copyright (c) 2026 sl-plugins-cement</Copyright>
 
-    <!--
-      Override on the command line when the game or EXILED lives somewhere else, e.g.
-        dotnet build -c Release -p:SCP_SL_MANAGED="D:\srv\SCPSL_Data\Managed"
-      EXILED_REFS defaults to the per-user LabAPI install that the EXILED installer writes to.
-    -->
+    <!-- Set SCP_SL_MANAGED to the target server's SCPSL_Data/Managed directory. -->
+    <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == '' and Exists('..\_buildrefs\LabApi.dll')">$(MSBuildProjectDirectory)\..\_buildrefs</SCP_SL_MANAGED>
     <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">C:\Program Files (x86)\Steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed</SCP_SL_MANAGED>
-    <EXILED_REFS Condition="'$(EXILED_REFS)' == ''">$(APPDATA)\SCP Secret Laboratory\LabAPI\dependencies\global</EXILED_REFS>
-    <EXILED_PLUGINS Condition="'$(EXILED_PLUGINS)' == ''">$(APPDATA)\EXILED\Plugins</EXILED_PLUGINS>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,8 +28,6 @@
     <Reference Include="UnityEngine" HintPath="$(SCP_SL_MANAGED)\UnityEngine.dll" Private="false" />
     <Reference Include="UnityEngine.CoreModule" HintPath="$(SCP_SL_MANAGED)\UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="UnityEngine.PhysicsModule" HintPath="$(SCP_SL_MANAGED)\UnityEngine.PhysicsModule.dll" Private="false" />
-    <Reference Include="Exiled.API" HintPath="$(EXILED_REFS)\Exiled.API.dll" Private="false" />
-    <Reference Include="Exiled.Events" HintPath="$(EXILED_PLUGINS)\Exiled.Events.dll" Private="false" />
   </ItemGroup>
 
 </Project>

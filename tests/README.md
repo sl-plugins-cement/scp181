@@ -2,7 +2,7 @@
 
 `DamageProbe.csproj` is an opt-in LabAPI plugin for a quick-tier dummy walkthrough. It is
 excluded from Scp181.dll and must never be shipped to production. Build with `dotnet build
-DamageProbe.csproj -c Release` and load only Scp181DamageProbe.dll on the isolated test port.
+DamageProbe.csproj -c Release` and load Scp181DamageProbe.dll alongside Scp181.dll on an isolated test port.
 
 Use native `dummy spawn`, `forceclass`, `scp181 set`, `effect`, and `scp181 status` commands.
 `damageprobe list` prints player ids, roles and HP. `damageprobe state <id>` observes role, HP,
@@ -30,7 +30,62 @@ on the Traumatized target must cost capped damage, not the instant kill. For SCP
 `attack049` must enable CardiacArrest, which must survive the debuff guard and tick; the second
 hit must cost capped damage. `effect Bleeding 1 30 <id>` must still be stripped within a second.
 
-Native contracts: `.references/Decompiled/DedicatedServer/Assembly-CSharp/PlayerStatsSystem/PlayerStats.cs`
-(DealDamage and native Dying), `PlayerStatsSystem/StandardDamageHandler.cs` (final damage), and
-`PlayerRoles/RoleChangeReason.cs` in the metarepo. EXILED Spawned carries the completed role's
-spawn reason; see `.references/Reference Plugins/EXILED/EXILED/Exiled.Events/EventArgs/Player/SpawnedEventArgs.cs`.
+Native contracts: the target server's `PlayerStatsSystem.PlayerStats.DealDamage`,
+`PlayerStatsSystem.StandardDamageHandler.ApplyDamage`, and
+`PlayerRoles.PlayerRoleManager.ServerSetRole`. LabAPI `ChangedRole` runs after the
+completed native swap and effect cleanup; `Death` runs after the spectator swap.
+
+## Offline regression checks
+
+From the repository root in PowerShell:
+
+```powershell
+dotnet build -c Release
+dotnet build tests/RegressionChecks.csproj -c Release -p:SCP_SL_MANAGED="D:\steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed"
+& ./tests/bin/Release/net48/RegressionChecks.exe ./bin/Release/net48/Scp181.dll
+```
+
+Checks use actual native damage-handler types without starting Unity. They verify pocket,
+status-effect, SCP attack, strangulation and firearm classification, plus the compiled plugin's
+LabAPI dependency and absence of EXILED references. These are not live gameplay tests.
+`RegressionChecks.cs` is excluded from both plugin assemblies.
+
+Build the optional probe against the same server with:
+
+```powershell
+dotnet build tests/DamageProbe.csproj -c Release -p:Game="D:\steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed"
+```
+
+## Name tag and migration client checklist
+
+Use an isolated server with LabAPI only and two clients. Set `copy_chance` and `unlock_chance`
+to 1 for deterministic positive cases; set `dodge_chance` to 0 for damage checks.
+
+1. Assign a living Class-D with `scp181 set <id>`. From the other client, look at their name
+   tag and press N: both should show the orange `SCP-181` badge. A late-joining viewer should
+   see the same badge. Check names containing spaces with `scp181 set <full nickname>`.
+2. Assign A, then B: both must keep SCP-181 badges, buffs and role hints. `scp181 status`
+   must list both. Spend A's survival charge and verify B's charge is unaffected. Reassign A:
+   B must remain SCP-181 and A's charges must not refill. Kill or change A's role: only A
+   loses the identity. `scp181 clear` must remove all remaining SCP-181s.
+   With a fresh config, the role introduction must use HSM Y=1000.
+3. Begin with an existing colored admin badge, assign SCP-181, then run `scp181 clear`.
+   Original badge text/color/visibility must return, and RA permissions must be unchanged.
+4. Repeat cleanup through death, role reassignment, round end,
+   disconnect/reconnect and plugin disable. No SCP-181 badge or reduction effect should remain.
+   `damageprobe state <id>` prints badge text, color and info-area flags for server inspection.
+5. Escape to MTF or Chaos: badge stays orange while the HUD card changes team color. A
+   cancelled role change must retain the current identity and badge.
+6. With 6 inventory items, a pickup adds the original and one copy; with 7, it adds only
+   the original; with 8, it cannot add anything. Cancelled pickups grant no copy.
+7. Unlocked keycard doors/lockers can open without a keycard. SCP-079 gates/armory and locked
+   doors cannot. Another plugin cancelling the event must still block interaction. Set chance
+   to 0 and verify the failed-roll cooldown is respected.
+8. Check death broadcast/subtitles and SCP damage/last-stand/pocket cases above. With no HSM,
+   badge/passives must work; enabling vanilla fallback must keep the role hint refreshed.
+
+## Verification record — 2026-09-23
+
+- Release build: passed, zero warnings/errors, against local LabAPI 1.1.7 assemblies.
+- Offline regression executable: 22 checks passed.
+- Client display, network replication and live gameplay checklist: not run.

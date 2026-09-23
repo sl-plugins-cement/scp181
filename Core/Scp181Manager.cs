@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Exiled.API.Enums;
-using Exiled.API.Features;
+using CustomPlayerEffects;
+using LabApi.Features.Wrappers;
+using Log = LabApi.Features.Console.Logger;
 using MEC;
 using PlayerRoles;
 using Scp181.Visuals;
@@ -32,43 +33,28 @@ namespace Scp181
         /// <summary>Running debuff-guard coroutines, so a re-assign cannot stack a second one.</summary>
         private static readonly Dictionary<int, CoroutineHandle> DebuffGuards = new Dictionary<int, CoroutineHandle>();
 
-        /// <summary>
-        /// Damaging debuffs SCP-181 shrugs off. SCP attack states are deliberately absent:
-        /// SCP-049's instant kill is gated on <c>CardiacArrest</c> (Scp049AttackAbility) and
-        /// SCP-106's Pocket Dimension capture on <c>Corroding</c> (Scp106Attack), while
-        /// <c>PocketCorroding</c> is the Pocket Dimension itself. Stripping those left both SCPs
-        /// unable to finish their attacks.
-        /// </summary>
-        private static readonly EffectType[] ClearedDebuffs =
-        {
-            EffectType.Bleeding,
-            EffectType.Poisoned,
-            EffectType.Hemorrhage,
-            EffectType.Burned,
-        };
-
         private static Config Config => MainClass.Instance!.Config;
 
-        public static bool IsScp181(Player p) => p != null && Active.ContainsKey(p.Id);
+        public static bool IsScp181(Player p) => p != null && Active.ContainsKey(p.PlayerId);
 
         public static Scp181Team? GetTeam(Player p)
-            => p != null && Active.TryGetValue(p.Id, out Scp181Team t) ? (Scp181Team?)t : null;
+            => p != null && Active.TryGetValue(p.PlayerId, out Scp181Team t) ? (Scp181Team?)t : null;
 
         /// <summary>Records the side SCP-181 currently counts as, for the role card color.</summary>
         public static void SetTeam(Player p, Scp181Team team)
         {
-            if (p != null && Active.ContainsKey(p.Id))
-                Active[p.Id] = team;
+            if (p != null && Active.ContainsKey(p.PlayerId))
+                Active[p.PlayerId] = team;
         }
 
         /// <summary>Whether the player is inside the short immunity window granted by a last stand.</summary>
         public static bool InSurviveImmunity(Player p)
-            => p != null && ImmortalUntil.TryGetValue(p.Id, out long until) && DateTime.UtcNow.Ticks < until;
+            => p != null && ImmortalUntil.TryGetValue(p.PlayerId, out long until) && DateTime.UtcNow.Ticks < until;
 
         public static void GrantSurviveImmunity(Player p, float seconds)
         {
             if (p != null)
-                ImmortalUntil[p.Id] = DateTime.UtcNow.AddSeconds(seconds).Ticks;
+                ImmortalUntil[p.PlayerId] = DateTime.UtcNow.AddSeconds(seconds).Ticks;
         }
 
         /// <summary>Spends one last-stand charge; false when none are left.</summary>
@@ -79,10 +65,10 @@ namespace Scp181
 
         private static bool TrySpend(IDictionary<int, int> budget, Player p)
         {
-            if (p == null || !budget.TryGetValue(p.Id, out int left) || left <= 0)
+            if (p == null || !budget.TryGetValue(p.PlayerId, out int left) || left <= 0)
                 return false;
 
-            budget[p.Id] = left - 1;
+            budget[p.PlayerId] = left - 1;
             return true;
         }
 
@@ -94,16 +80,16 @@ namespace Scp181
 
         public static bool TryAssign(Player p)
         {
-            if (p == null || !p.IsConnected || !p.IsAlive || !ReinforcementRoleBridge.CanAssign(p))
+            if (p == null || p.IsDestroyed || !p.IsAlive || !ReinforcementRoleBridge.CanAssign(p))
                 return false;
 
-            // Complete any required native role swap before claiming ownership or releasing
-            // the incumbent. Another plugin can cancel the swap without losing either role.
-            if (!IsScp181(p) && p.Role.Type != RoleTypeId.ClassD)
+            // Complete the native role swap before claiming ownership. Other SCP-181
+            // players retain their identity, effects and independent survival budgets.
+            if (!IsScp181(p) && p.Role != RoleTypeId.ClassD)
             {
                 try
                 {
-                    p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ClassD, RoleChangeReason.None);
+                    p.SetRole(RoleTypeId.ClassD, RoleChangeReason.None);
                 }
                 catch (Exception ex)
                 {
@@ -111,23 +97,21 @@ namespace Scp181
                     return false;
                 }
 
-                if (!p.IsConnected || p.Role.Type != RoleTypeId.ClassD || !ReinforcementRoleBridge.CanAssign(p))
+                if (p.IsDestroyed || p.Role != RoleTypeId.ClassD || !ReinforcementRoleBridge.CanAssign(p))
                     return false;
             }
 
-            foreach (Player current in Player.List.Where(x => x.Id != p.Id && IsScp181(x)).ToList())
-                Remove(current);
-
             if (!IsScp181(p))
             {
-                Active[p.Id] = Scp181Team.D;
-                SurviveLeft[p.Id] = Config.SurviveChances;
-                PocketEscapesLeft[p.Id] = Config.PocketEscapeChances;
+                Active[p.PlayerId] = Scp181Team.D;
+                SurviveLeft[p.PlayerId] = Config.SurviveChances;
+                PocketEscapesLeft[p.PlayerId] = Config.PocketEscapeChances;
 
                 p.MaxHealth = 100;
                 p.Health = 100;
             }
 
+            Scp181Identity.Apply(p);
             Scp181Hints.RemoveRoleIntro(p);
             Scp181Hints.ShowRoleIntro(p, GetTeam(p) ?? Scp181Team.D);
             ApplyReductionEffects(p);
@@ -141,17 +125,17 @@ namespace Scp181
         /// <summary>
         /// (Re)applies the permanent damage reduction effects. The game disables every effect on a
         /// role change (StatusEffectBase.OnRoleChanged), so this has to run AFTER the new role is
-        /// live - see the Spawned handler in Scp181Events.
+        /// live - see the ChangedRole handler in Scp181Events.
         /// </summary>
         public static void ApplyReductionEffects(Player p)
         {
-            if (p == null || !p.IsConnected)
+            if (p == null || p.IsDestroyed)
                 return;
 
             try
             {
-                p.EnableEffect(EffectType.BodyshotReduction, Config.BodyshotReductionIntensity, 3600f);
-                p.EnableEffect(EffectType.DamageReduction, Config.DamageReductionIntensity, 3600f);
+                p.EnableEffect<BodyshotReduction>(Config.BodyshotReductionIntensity);
+                p.EnableEffect<DamageReduction>(Config.DamageReductionIntensity);
             }
             catch (Exception ex)
             {
@@ -162,13 +146,13 @@ namespace Scp181
         /// <summary>Takes the plugin's own buffs back off a player who is no longer SCP-181.</summary>
         private static void RemoveReductionEffects(Player p)
         {
-            if (p == null || !p.IsConnected)
+            if (p == null || p.IsDestroyed)
                 return;
 
             try
             {
-                p.DisableEffect(EffectType.BodyshotReduction);
-                p.DisableEffect(EffectType.DamageReduction);
+                p.DisableEffect<BodyshotReduction>();
+                p.DisableEffect<DamageReduction>();
             }
             catch (Exception ex)
             {
@@ -176,16 +160,24 @@ namespace Scp181
             }
         }
 
-        /// <summary>Clears the damaging debuffs SCP-181 is immune to. SCP attack states are left alone.</summary>
+        /// <summary>
+        /// Damaging debuffs SCP-181 shrugs off. SCP attack states are deliberately absent:
+        /// SCP-049's instant kill is gated on <c>CardiacArrest</c> (Scp049AttackAbility) and
+        /// SCP-106's Pocket Dimension capture on <c>Corroding</c> (Scp106Attack), while
+        /// <c>PocketCorroding</c> is the Pocket Dimension itself. Stripping those left both SCPs
+        /// unable to finish their attacks.
+        /// </summary>
         public static void ClearScpDebuffs(Player p)
         {
-            if (p == null || !p.IsConnected)
+            if (p == null || p.IsDestroyed)
                 return;
 
             try
             {
-                foreach (EffectType effect in ClearedDebuffs)
-                    p.DisableEffect(effect);
+                p.DisableEffect<Bleeding>();
+                p.DisableEffect<Poisoned>();
+                p.DisableEffect<Hemorrhage>();
+                p.DisableEffect<Burned>();
             }
             catch (Exception ex)
             {
@@ -199,18 +191,20 @@ namespace Scp181
             if (p == null)
                 return;
 
-            if (DebuffGuards.TryGetValue(p.Id, out CoroutineHandle running))
+            if (DebuffGuards.TryGetValue(p.PlayerId, out CoroutineHandle running))
                 Timing.KillCoroutines(running);
 
-            DebuffGuards[p.Id] = Timing.RunCoroutine(GuardDebuffs(p));
+            DebuffGuards[p.PlayerId] = Timing.RunCoroutine(GuardDebuffs(p));
         }
 
         /// <summary>Re-clears SCP debuffs twice a second for as long as the player is SCP-181.</summary>
         private static IEnumerator<float> GuardDebuffs(Player p)
         {
-            while (p != null && p.IsConnected && IsScp181(p))
+            while (p != null && !p.IsDestroyed && IsScp181(p))
             {
                 ClearScpDebuffs(p);
+                if (MainClass.Instance?.Hints.RequiresPromptRefresh == true)
+                    Scp181Hints.ShowRoleIntro(p, GetTeam(p) ?? Scp181Team.D);
                 yield return Timing.WaitForSeconds(0.5f);
             }
         }
@@ -224,22 +218,23 @@ namespace Scp181
             if (p == null)
                 return;
 
-            if (DebuffGuards.TryGetValue(p.Id, out CoroutineHandle guard))
+            if (DebuffGuards.TryGetValue(p.PlayerId, out CoroutineHandle guard))
             {
                 Timing.KillCoroutines(guard);
-                DebuffGuards.Remove(p.Id);
+                DebuffGuards.Remove(p.PlayerId);
             }
 
-            bool wasActive = Active.Remove(p.Id);
-            ImmortalUntil.Remove(p.Id);
-            SurviveLeft.Remove(p.Id);
-            PocketEscapesLeft.Remove(p.Id);
+            Scp181Identity.Remove(p);
+            bool wasActive = Active.Remove(p.PlayerId);
+            ImmortalUntil.Remove(p.PlayerId);
+            SurviveLeft.Remove(p.PlayerId);
+            PocketEscapesLeft.Remove(p.PlayerId);
 
             Scp181Hints.RemoveRoleIntro(p);
             Scp181Hints.ClearTransient(p);
 
-            // A living ex-SCP-181 would otherwise keep an hour-long damage reduction buff.
-            if (wasActive && p.IsConnected && p.IsAlive)
+            // A living ex-SCP-181 would otherwise keep a permanent damage reduction buff.
+            if (wasActive && !p.IsDestroyed && p.IsAlive)
                 RemoveReductionEffects(p);
         }
 
@@ -252,14 +247,14 @@ namespace Scp181
             if (!Config.AutoSelectOnRoundStart || Active.Count != 0)
                 return;
 
-            List<Player> alive = Player.List.Where(x => x.IsConnected && x.IsAlive).ToList();
+            List<Player> alive = Player.List.Where(x => !x.IsDestroyed && x.IsAlive).ToList();
             if (alive.Count <= Config.MinPlayers)
                 return;
 
             List<Player> available = alive.Where(ReinforcementRoleBridge.CanAssign).ToList();
-            List<Player> pool = available.Where(x => x.Role.Type == RoleTypeId.ClassD).ToList();
+            List<Player> pool = available.Where(x => x.Role == RoleTypeId.ClassD).ToList();
             if (pool.Count == 0)
-                pool = available.Where(x => x.Role.Type == RoleTypeId.Tutorial || x.Role.Type == RoleTypeId.Scientist).ToList();
+                pool = available.Where(x => x.Role == RoleTypeId.Tutorial || x.Role == RoleTypeId.Scientist).ToList();
 
             if (pool.Count == 0)
             {
@@ -275,7 +270,7 @@ namespace Scp181
         {
             foreach (int id in Active.Keys.ToList())
             {
-                Player p = Player.Get(id);
+                Player? p = Player.Get(id);
                 if (p != null)
                 {
                     Remove(p);
@@ -295,6 +290,8 @@ namespace Scp181
                 PocketEscapesLeft.Remove(id);
             }
 
+            Scp181Identity.Clear();
+            Scp181Hints.ClearAll();
             Active.Clear();
             ImmortalUntil.Clear();
             SurviveLeft.Clear();

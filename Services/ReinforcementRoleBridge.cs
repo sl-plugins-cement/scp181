@@ -1,7 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using Exiled.API.Features;
+using LabApi.Features.Wrappers;
+using Log = LabApi.Features.Console.Logger;
 using LabPlayer = LabApi.Features.Wrappers.Player;
 
 namespace Scp181.Services;
@@ -45,8 +46,7 @@ internal static class ReinforcementRoleBridge
         try
         {
             if (!Resolve()) return true;
-            LabPlayer? wrapped = LabPlayer.Get(player.ReferenceHub);
-            return wrapped != null && !_isPending!() && !_isTracked!(wrapped);
+            return !_isPending!() && !_isTracked!(player);
         }
         catch (Exception ex) { LogFailure(ex); return false; }
     }

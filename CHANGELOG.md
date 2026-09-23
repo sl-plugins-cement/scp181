@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 2.0.1
+
+- Allow multiple manually assigned SCP-181 players without replacing existing holders.
+- List all holders in `scp181 status`; clarify that `scp181 clear` removes all holders.
+- Move the default role introduction HSM Y coordinate from 900 to 1000.
+
+## 2.0.0 — LabAPI migration
+
+- Replace all EXILED plugin, player, event, effect, logging and build dependencies with LabAPI.
+- Add the orange native SCP-181 name tag and N-menu badge, with original badge restoration.
+- Use completed role changes, native damage handlers and post-pickup duplication events.
+- Preserve door/locker cancellation while setting LabAPI's CanOpen for lucky unlocks.
+- Cancel dodge countdowns on cleanup and refresh persistent hints in vanilla fallback mode.
+- Generate configuration through LabAPI and document installation and native damage keys.
+
+## Previous unreleased fixes
 
 ### Fixed
 

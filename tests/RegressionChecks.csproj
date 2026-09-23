@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">$(MSBuildProjectDirectory)\..\..\_buildrefs</SCP_SL_MANAGED>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="RegressionChecks.cs" />
+    <Compile Include="..\Core\DamageSources.cs" Link="DamageSources.cs" />
+    <Reference Include="Assembly-CSharp" HintPath="$(SCP_SL_MANAGED)\Assembly-CSharp.dll" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(SCP_SL_MANAGED)\UnityEngine.CoreModule.dll" />
+    <Reference Include="Mirror" HintPath="$(SCP_SL_MANAGED)\Mirror.dll" />
+  </ItemGroup>
+</Project>

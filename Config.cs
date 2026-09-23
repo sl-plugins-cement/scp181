@@ -1,10 +1,9 @@
 using System.Collections.Generic;
 using System.ComponentModel;
-using Exiled.API.Interfaces;
 
 namespace Scp181
 {
-    public class Config : IConfig
+    public class Config
     {
         [Description("Whether the plugin is enabled.")]
         public bool IsEnabled { get; set; } = true;
@@ -27,7 +26,7 @@ namespace Scp181
         public float DodgeChance { get; set; } = 0.5f;
 
         [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it).\n" +
-                     "Keys are EXILED DamageType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...).\n" +
+                     "Keys are native damage aliases or weapon ItemType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...).\n" +
                      "A specific weapon type wins over the generic \"Firearm\" key; if neither matches, the\n" +
                      "attacker's RoleTypeId name (Scp173, ChaosRifleman, ...) is tried last.")]
         public Dictionary<string, float> DamageReductionTable { get; set; } =
@@ -85,7 +84,7 @@ namespace Scp181
 
         // ---- Hint coordinates ----
         [Description("HSM Y coordinate of the persistent role card.")]
-        public float RoleIntroY { get; set; } = 900f;
+        public float RoleIntroY { get; set; } = 1000f;
 
         [Description("HSM Y coordinate of the dodge hint shown to the attacker.")]
         public float DodgeMsgY { get; set; } = 800f;
