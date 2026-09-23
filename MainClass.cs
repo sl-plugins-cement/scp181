@@ -17,7 +17,7 @@ namespace Scp181
 
         public override string Description => "SCP-181 Lucky Charm role with survival passives and an orange badge.";
 
-        public override Version Version => new Version(2, 0, 1);
+        public override Version Version => new Version(2, 0, 2);
 
         public override Version RequiredApiVersion => new Version(1, 1, 7);
 

@@ -25,9 +25,9 @@ namespace Scp181
         [Description("Chance (0-1) that an incoming attack is negated outright.")]
         public float DodgeChance { get; set; } = 0.5f;
 
-        [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it).\n" +
-                     "Keys are native damage aliases or weapon ItemType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...).\n" +
-                     "A specific weapon type wins over the generic \"Firearm\" key; if neither matches, the\n" +
+        [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it). " +
+                     "Keys are native damage aliases or weapon ItemType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...). " +
+                     "A specific weapon type wins over the generic \"Firearm\" key; if neither matches, the " +
                      "attacker's RoleTypeId name (Scp173, ChaosRifleman, ...) is tried last.")]
         public Dictionary<string, float> DamageReductionTable { get; set; } =
             new Dictionary<string, float>
@@ -35,14 +35,14 @@ namespace Scp181
                 ["Firearm"] = 0.1f,
             };
 
-        [Description("Hard cap on a single hit from any SCP. Also the damage an SCP instant-kill\n" +
+        [Description("Hard cap on a single hit from any SCP. Also the damage an SCP instant-kill " +
                      "(SCP-173 neck snap, SCP-049 instakill, SCP-106 grab) is converted into.")]
         public float ScpDamageCap { get; set; } = 10f;
 
         [Description("Chance (0-1) to force-open a keycard door or an SCP locker chamber.")]
         public float UnlockChance { get; set; } = 0.3f;
 
-        [Description("Seconds before a failed unlock roll on the same door/chamber may be rolled again.\n" +
+        [Description("Seconds before a failed unlock roll on the same door/chamber may be rolled again. " +
                      "Without this, spamming the interact key converges on a guaranteed open.")]
         public float UnlockRerollCooldownSeconds { get; set; } = 8f;
 
@@ -55,11 +55,11 @@ namespace Scp181
         [Description("Number of guaranteed escapes from a lethal Pocket Dimension outcome, per round.")]
         public int PocketEscapeChances { get; set; } = 1;
 
-        [Description("Intensity of the permanent DamageReduction effect. The game computes the kept\n" +
+        [Description("Intensity of the permanent DamageReduction effect. The game computes the kept " +
                      "damage as 1 - intensity * 0.005, so 50 = 25% less damage and 200 = immune.")]
         public byte DamageReductionIntensity { get; set; } = 50;
 
-        [Description("Intensity of the permanent BodyshotReduction effect. The game clamps this to its\n" +
+        [Description("Intensity of the permanent BodyshotReduction effect. The game clamps this to its " +
                      "5-entry table, so anything at or above 4 is the maximum 15% body-shot reduction.")]
         public byte BodyshotReductionIntensity { get; set; } = 4;
 
@@ -109,7 +109,7 @@ namespace Scp181
         public bool DiedCassieEnable { get; set; } = true;
 
         // ---- Hint display ----
-        [Description("HintServiceMeow display settings. Hints are disabled entirely when HSM is missing\n" +
+        [Description("HintServiceMeow display settings. Hints are disabled entirely when HSM is missing " +
                      "unless EnableVanillaFallback is turned on.")]
         public HintDisplayConfig HintDisplay { get; set; } = new HintDisplayConfig();
     }

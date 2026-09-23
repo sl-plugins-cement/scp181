@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.2
+
+- Keep every config description on one line. LabAPI comments only the first line of a
+  multi-line description, so the generated `config.yml` failed to parse on every later boot
+  and the plugin silently ran on defaults.
+
 ## 2.0.1
 
 - Allow multiple manually assigned SCP-181 players without replacing existing holders.
