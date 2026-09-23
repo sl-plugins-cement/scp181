@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- **SCP-049, SCP-106 and SCP-3114 could not kill SCP-181.** The debuff guard stripped
+  `CardiacArrest`, `Corroding` and `PocketCorroding` twice a second, but the game gates SCP-049's
+  instant kill on `CardiacArrest` (`Scp049AttackAbility`) and SCP-106's Pocket Dimension capture
+  on `Corroding` (`Scp106Attack`), and `PocketCorroding` is the Pocket Dimension decay itself.
+  Both attacks restarted on every hit and never completed. SCP-3114's strangulation was refused
+  as a status-effect tick, and `Strangled.ServerUpdate` releases the hold the moment a tick is
+  refused. Those three effects are no longer stripped, and strangulation takes the reduction
+  table and SCP cap but is never dodged or denied. The Pocket Dimension escape still clears
+  `Corroding` and `PocketCorroding` itself, as the game's own exit does.
 - Last stand now cancels native death after damage modifiers and shields settle, restoring 1 HP.
   Blocked or nonlethal hits no longer consume the charge; scripted instant kills bypass immunity.
 - Only completed escape transitions to MTF/Chaos retain SCP-181. Other completed role changes

@@ -175,12 +175,18 @@ namespace Scp181.Events
             // Post-last-stand immunity window: nothing lands at all.
             if (Scp181Manager.InSurviveImmunity(victim))
             {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] {victim.Nickname} ignored {damageType} ({ev.Amount:F2}) during last-stand immunity.");
                 Deny(ev, victim);
                 return;
             }
 
             // Damage-over-time from a status effect (bleeding, poison, hypothermia, ...) never lands.
-            if (damageType.IsStatusEffect())
+            // SCP-3114's strangulation is excluded: it is an SCP attack streamed per frame, and the
+            // hold ends as soon as one tick is refused (Strangled.ServerUpdate). It only takes the
+            // mitigation below and is never dodged.
+            bool strangled = damageType == DamageType.Strangled;
+            if (!strangled && damageType.IsStatusEffect())
             {
                 Deny(ev, victim);
                 return;
@@ -231,7 +237,7 @@ namespace Scp181.Events
                 ev.Amount = Config.ScpDamageCap;
 
             // Flat dodge chance against everything that got this far.
-            if (UnityEngine.Random.value < Config.DodgeChance)
+            if (!strangled && UnityEngine.Random.value < Config.DodgeChance)
             {
                 Deny(ev, victim);
                 if (hasAttacker)
@@ -254,12 +260,18 @@ namespace Scp181.Events
                 return;
 
             if (!Scp181Manager.TryUseSurvive(victim))
+            {
+                if (Config.Debug)
+                    Log.Debug($"[Scp181] {victim.Nickname} dies to {damage.GetType().Name} ({damage.Damage:F2}); no last-stand charge left.");
                 return;
+            }
 
             victim.Health = 1f;
             ev.IsAllowed = false;
             Scp181Manager.GrantSurviveImmunity(victim, Config.SurviveImmunitySeconds);
             Scp181Hints.ShowSurviveMsg(victim);
+            if (Config.Debug)
+                Log.Debug($"[Scp181] {victim.Nickname} survived {damage.GetType().Name} ({damage.Damage:F2}) on 1 HP; immune for {Config.SurviveImmunitySeconds:F1}s.");
         }
 
         private static void Deny(HurtingEventArgs ev, Player victim)
@@ -312,6 +324,8 @@ namespace Scp181.Events
                 }
 
                 fpcRole.FpcModule.ServerOverridePosition(Scp106PocketExitFinder.GetBestExitPosition(fpcRole));
+                p.DisableEffect(EffectType.PocketCorroding);
+                p.DisableEffect(EffectType.Corroding);
                 Scp181Manager.ClearScpDebuffs(p);
                 p.EnableEffect(EffectType.Disabled, 10f, addDurationIfActive: true);
                 p.EnableEffect(EffectType.Traumatized);
