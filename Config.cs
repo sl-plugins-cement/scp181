@@ -23,17 +23,14 @@ namespace Scp181
         public float CopyChance { get; set; } = 0.1f;
 
         [Description("Chance (0-1) that an incoming attack is negated outright.")]
-        public float DodgeChance { get; set; } = 0.15f;
+        public float DodgeChance { get; set; } = 0.3f;
 
         [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it). " +
                      "Keys are native damage aliases or weapon ItemType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...). " +
                      "A specific weapon type wins over the generic \"Firearm\" key; if neither matches, the " +
                      "attacker's RoleTypeId name (Scp173, ChaosRifleman, ...) is tried last.")]
         public Dictionary<string, float> DamageReductionTable { get; set; } =
-            new Dictionary<string, float>
-            {
-                ["Firearm"] = 0.4f,
-            };
+            new Dictionary<string, float>();
 
         [Description("Hard cap on a single hit from any SCP. Also the damage an SCP instant-kill " +
                      "(SCP-173 neck snap, SCP-049 instakill, SCP-106 grab) is converted into.")]
@@ -60,11 +57,11 @@ namespace Scp181
 
         [Description("Intensity of the permanent DamageReduction effect. The game computes the kept " +
                      "damage as 1 - intensity * 0.005, so 50 = 25% less damage and 200 = immune.")]
-        public byte DamageReductionIntensity { get; set; } = 50;
+        public byte DamageReductionIntensity { get; set; } = 0;
 
         [Description("Intensity of the permanent BodyshotReduction effect. The game clamps this to its " +
                      "5-entry table, so anything at or above 4 is the maximum 15% body-shot reduction.")]
-        public byte BodyshotReductionIntensity { get; set; } = 4;
+        public byte BodyshotReductionIntensity { get; set; } = 0;
 
         [Description("Display time (seconds) of the item-duplication hint.")]
         public float CopyMsgSeconds { get; set; } = 3f;

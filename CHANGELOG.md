@@ -4,9 +4,10 @@
 
 - Escaping as MTF or Chaos now ends SCP-181 by default; `keep_passives_after_escape` restores
   the old behavior. An escaped, fully armed SCP-181 was nearly unkillable.
-- Default `dodge_chance` 0.5 → 0.15 and `Firearm` damage kept 0.1 → 0.4. Together with the
-  native reduction effects, SCP-181 now takes roughly 22% of firearm damage on average
-  instead of about 3%.
+- Survivability is now luck, not armor: by default hits are either dodged outright
+  (`dodge_chance` 0.5 → 0.3) or land in full. The default `damage_reduction_table` is empty
+  (was `Firearm: 0.1`) and the `DamageReduction`/`BodyshotReduction` intensities are 0
+  (were 50/4). Firearm damage taken rises from about 3% to 70% on average.
 - Existing `config.yml` files keep their saved values; update them to apply the new balance.
 
 ## 2.0.3

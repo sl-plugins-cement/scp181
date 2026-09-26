@@ -1,8 +1,7 @@
 # SCP-181 (Lucky Charm)
 
 An SCP:SL role plugin for LabAPI. At round start one player is quietly turned into **SCP-181**, a
-Class-D with absurd survivability — heavy damage mitigation, item duplication and lucky door
-unlocks. SCP-181 has no objective beyond staying alive inside the facility.
+lucky Class-D — randomly dodged hits, item duplication and lucky door unlocks. SCP-181 has no objective beyond staying alive inside the facility.
 
 - Framework: LabAPI 1.1.7+ / .NET Framework 4.8; no EXILED dependencies
 - HUD: HintServiceMeow through the shared hint display provider
@@ -95,8 +94,8 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
 | `copy_chance` | `0.1` | Item duplication chance |
-| `dodge_chance` | `0.15` | Chance an attack is negated |
-| `damage_reduction_table` | `Firearm: 0.4` | Damage source → fraction of damage kept |
+| `dodge_chance` | `0.3` | Chance an attack is negated |
+| `damage_reduction_table` | empty | Damage source → fraction of damage kept |
 | `scp_damage_cap` | `10` | Cap per SCP hit, and the value SCP instant-kills become |
 | `unlock_chance` | `0.3` | Keycard door / SCP locker unlock chance |
 | `unlock_reroll_cooldown_seconds` | `8` | Hold time on a failed unlock roll |
@@ -104,8 +103,8 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 | `survive_immunity_seconds` | `1.5` | Immunity window after a last stand |
 | `pocket_escape_chances` | `1` | Guaranteed Pocket Dimension escapes |
 | `keep_passives_after_escape` | `false` | Keep SCP-181 after escaping as MTF or Chaos |
-| `damage_reduction_intensity` | `50` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
-| `bodyshot_reduction_intensity` | `4` | `BodyshotReduction` intensity; the game clamps this at 4 (−15%) |
+| `damage_reduction_intensity` | `0` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
+| `bodyshot_reduction_intensity` | `0` | `BodyshotReduction` intensity; the game clamps this at 4 (−15%) |
 | `scp_color` / `ntf_color` / `chaos_color` | orange / blue / dark green | Role card colors |
 | `role_intro_y` / `dodge_msg_y` / `survive_msg_y` | `1000` / `800` / `780` | HSM Y coordinates |
 | `cassie_transmission` / `death_announce` | … | Death broadcast text |
