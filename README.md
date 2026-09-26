@@ -1,7 +1,7 @@
 # SCP-181 (Lucky Charm)
 
 An SCP:SL role plugin for LabAPI. At round start one player is quietly turned into **SCP-181**, a
-lucky Class-D — randomly dodged hits, item duplication and lucky door unlocks. SCP-181 has no objective beyond staying alive inside the facility.
+lucky Class-D — occasional dodged hits and survived SCP attacks, item duplication and lucky door unlocks. SCP-181 has no objective beyond staying alive inside the facility.
 
 - Framework: LabAPI 1.1.7+ / .NET Framework 4.8; no EXILED dependencies
 - HUD: HintServiceMeow through the shared hint display provider
@@ -51,14 +51,14 @@ rules (distance, line of sight, etc.) still apply.
 3. **Damage reduction table** — `DamageReductionTable` maps a damage source to the fraction of
    damage that still lands. Keys are native damage aliases or firearm `ItemType` names; a specific weapon type wins over
    the generic `Firearm` key, and the attacker's role name is tried last.
-4. **SCP damage cap** — no single hit from an SCP exceeds `ScpDamageCap`. This includes the
-   instant-kill abilities (SCP-173's neck snap, SCP-049's instakill, SCP-106's grab), which are
-   converted into capped damage instead of a guaranteed death.
+4. **Lucky SCP cap** — each SCP hit has a `ScpDamageCapChance` chance of being capped at
+   `ScpDamageCap`. A capped instant-kill ability (SCP-173's neck snap, SCP-049's instakill,
+   SCP-106's grab) becomes capped damage; an uncapped one kills, and last stand does not apply.
 5. **Status effect immunity** — damage-over-time from bleeding, poison, hypothermia and similar
    status effects never lands, and those debuffs are stripped twice a second. SCP attack states
    are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and the Pocket Dimension run
-   their course, and their damage takes the SCP mitigation above. SCP-3114's strangulation is
-   reduced and capped but never dodged, because the hold breaks as soon as a tick is refused.
+   their course, and their damage takes the SCP cap roll above. SCP-3114's strangulation takes
+   the cap roll but is never dodged, because the hold breaks as soon as a tick is refused.
    Shared movement effects (`Ensnared` and `Concussed`) are preserved.
 6. **Last stand** — a lethal hit is survived on 1 HP, `SurviveChances` times per assignment,
    followed by `SurviveImmunitySeconds` of full immunity. Lethality is evaluated after native damage reduction and shields.
@@ -94,16 +94,17 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
 | `copy_chance` | `0.1` | Item duplication chance |
-| `dodge_chance` | `0.3` | Chance an attack is negated |
+| `dodge_chance` | `0.05` | Chance an attack is negated |
 | `damage_reduction_table` | empty | Damage source → fraction of damage kept |
-| `scp_damage_cap` | `10` | Cap per SCP hit, and the value SCP instant-kills become |
+| `scp_damage_cap` | `10` | Cap per capped SCP hit, and the value a capped SCP instant kill becomes |
+| `scp_damage_cap_chance` | `0.1` | Chance an SCP hit is capped |
 | `unlock_chance` | `0.3` | Keycard door / SCP locker unlock chance |
 | `unlock_reroll_cooldown_seconds` | `8` | Hold time on a failed unlock roll |
 | `survive_chances` | `1` | Last-stand charges |
 | `survive_immunity_seconds` | `1.5` | Immunity window after a last stand |
 | `pocket_escape_chances` | `1` | Guaranteed Pocket Dimension escapes |
 | `keep_passives_after_escape` | `false` | Keep SCP-181 after escaping as MTF or Chaos |
-| `damage_reduction_intensity` | `0` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
+| `damage_reduction_intensity` | `6` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
 | `bodyshot_reduction_intensity` | `0` | `BodyshotReduction` intensity; the game clamps this at 4 (−15%) |
 | `scp_color` / `ntf_color` / `chaos_color` | orange / blue / dark green | Role card colors |
 | `role_intro_y` / `dodge_msg_y` / `survive_msg_y` | `1000` / `800` / `780` | HSM Y coordinates |
