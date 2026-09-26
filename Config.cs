@@ -37,7 +37,7 @@ namespace Scp181
         public float ScpDamageCap { get; set; } = 10f;
 
         [Description("Chance (0-1) that an SCP hit is capped at ScpDamageCap. Otherwise it lands in full, and an SCP instant kill kills.")]
-        public float ScpDamageCapChance { get; set; } = 0.1f;
+        public float ScpDamageCapChance { get; set; } = 0.12f;
 
         [Description("Chance (0-1) to force-open a keycard door or an SCP locker chamber.")]
         public float UnlockChance { get; set; } = 0.3f;

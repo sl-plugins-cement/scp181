@@ -97,7 +97,7 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 | `dodge_chance` | `0.05` | Chance an attack is negated |
 | `damage_reduction_table` | empty | Damage source → fraction of damage kept |
 | `scp_damage_cap` | `10` | Cap per capped SCP hit, and the value a capped SCP instant kill becomes |
-| `scp_damage_cap_chance` | `0.1` | Chance an SCP hit is capped |
+| `scp_damage_cap_chance` | `0.12` | Chance an SCP hit is capped |
 | `unlock_chance` | `0.3` | Keycard door / SCP locker unlock chance |
 | `unlock_reroll_cooldown_seconds` | `8` | Hold time on a failed unlock roll |
 | `survive_chances` | `1` | Last-stand charges |
