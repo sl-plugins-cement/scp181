@@ -128,7 +128,7 @@ namespace Scp181.Events
 
         private static void ResetFlags() => UnlockCooldowns.Clear();
 
-        // ================= Escape keeps the passives =================
+        // ================= Escape =================
 
         private void OnChangedRole(PlayerChangedRoleEventArgs ev)
         {
@@ -140,7 +140,7 @@ namespace Scp181.Events
                 return;
 
             // Inspect the completed swap, so a cancelled role request cannot strip ownership.
-            if (ev.ChangeReason != RoleChangeReason.Escaped || !ev.Player.IsAlive ||
+            if (ev.ChangeReason != RoleChangeReason.Escaped || !ev.Player.IsAlive || !Config.KeepPassivesAfterEscape ||
                 (!NtfRoles.Contains(ev.Player.Role) && !ChaosRoles.Contains(ev.Player.Role)))
             {
                 Scp181Manager.Remove(ev.Player);

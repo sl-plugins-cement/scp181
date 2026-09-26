@@ -20,7 +20,7 @@ Set dodge_chance to 0 for deterministic damage checks. A raw 100 hit from 100 HP
 nonlethal after reductions. Block a 1000 hit, unblock it, then repeat: the blocked hit preserves
 HP and the first applied lethal hit leaves 1 HP. After immunity expires, another lethal hit
 must cause death. Apply Ensnared and wait beyond 0.5 seconds to verify it survives cleanup.
-Check escape retention, cancelled role-change retention, successful role-change removal,
+Check escape removal (retention with `keep_passives_after_escape`), cancelled role-change retention, successful role-change removal,
 same-Class-D reassignment removal, and failed conversion preserving the incumbent.
 
 SCP capture path: two `attack106` hits about two seconds apart must first enable Corroding (still

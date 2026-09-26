@@ -23,7 +23,7 @@ namespace Scp181
         public float CopyChance { get; set; } = 0.1f;
 
         [Description("Chance (0-1) that an incoming attack is negated outright.")]
-        public float DodgeChance { get; set; } = 0.5f;
+        public float DodgeChance { get; set; } = 0.15f;
 
         [Description("Damage source -> fraction of damage that still lands (0.1 keeps 10%, 0 negates it). " +
                      "Keys are native damage aliases or weapon ItemType names (Firearm, Scp173, Scp106, Explosion, Tesla, ...). " +
@@ -32,7 +32,7 @@ namespace Scp181
         public Dictionary<string, float> DamageReductionTable { get; set; } =
             new Dictionary<string, float>
             {
-                ["Firearm"] = 0.1f,
+                ["Firearm"] = 0.4f,
             };
 
         [Description("Hard cap on a single hit from any SCP. Also the damage an SCP instant-kill " +
@@ -54,6 +54,9 @@ namespace Scp181
 
         [Description("Number of guaranteed escapes from a lethal Pocket Dimension outcome, per round.")]
         public int PocketEscapeChances { get; set; } = 1;
+
+        [Description("Keep SCP-181 and every passive after escaping as MTF or Chaos. When false, a completed escape ends the role.")]
+        public bool KeepPassivesAfterEscape { get; set; } = false;
 
         [Description("Intensity of the permanent DamageReduction effect. The game computes the kept " +
                      "damage as 1 - intensity * 0.005, so 50 = 25% less damage and 200 = immune.")]
