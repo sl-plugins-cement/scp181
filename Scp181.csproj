@@ -15,7 +15,20 @@
     <!-- Set SCP_SL_MANAGED to the target server's SCPSL_Data/Managed directory. -->
     <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == '' and Exists('..\_buildrefs\LabApi.dll')">$(MSBuildProjectDirectory)\..\_buildrefs</SCP_SL_MANAGED>
     <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">C:\Program Files (x86)\Steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed</SCP_SL_MANAGED>
+
+    <!-- HsmAdapter is built from source: a sibling ..\HsmAdapter checkout, a parent workspace, or -p:HsmAdapterProject=<path>. -->
+    <HsmAdapterProject Condition="'$(HsmAdapterProject)' == '' and Exists('$(MSBuildThisFileDirectory)..\HsmAdapter\HsmAdapter.csproj')">$(MSBuildThisFileDirectory)..\HsmAdapter\HsmAdapter.csproj</HsmAdapterProject>
+    <HsmAdapterProject Condition="'$(HsmAdapterProject)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\HsmAdapter\HsmAdapter.csproj')">$(MSBuildThisFileDirectory)..\..\HsmAdapter\HsmAdapter.csproj</HsmAdapterProject>
+    <HsmAdapterProject Condition="'$(HsmAdapterProject)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\HsmAdapter\HsmAdapter.csproj')">$(MSBuildThisFileDirectory)..\..\..\HsmAdapter\HsmAdapter.csproj</HsmAdapterProject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(HsmAdapterProject)" Private="false" Condition="'$(HsmAdapterProject)' != '' and Exists('$(HsmAdapterProject)')" />
+  </ItemGroup>
+
+  <Target Name="RequireHsmAdapterProject" BeforeTargets="BeforeBuild" Condition="'$(HsmAdapterProject)' == '' or !Exists('$(HsmAdapterProject)')">
+    <Error Text="HsmAdapter project not found ('$(HsmAdapterProject)'). Clone https://github.com/sl-plugins-cement/HsmAdapter beside this checkout as ..\HsmAdapter, or pass -p:HsmAdapterProject=&lt;path to HsmAdapter.csproj&gt;." />
+  </Target>
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
