@@ -132,11 +132,13 @@ if ((PlayerState $id).held -ne 'GunE11SR') {
 }
 $null = WaitFor { (PlayerState $id).held -eq 'GunE11SR' } 'E11 was not equipped' 10
 Start-Sleep -Seconds 1
-$target = PlayerState $dummy
-$null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
-$result.dodgeTarget = @{ dummy = $dummy; before = (PlayerState $dummy).health }
-# Two short bursts: each landed hit is dodged with probability 0.5 and restarts the countdown.
-foreach ($burst in 1, 2) {
+$result.dodgeTarget = [ordered]@{ dummy = $dummy; before = (PlayerState $dummy).health }
+# Short bursts, re-aimed each time against recoil. Each hit is dodged with probability 0.5 and
+# restarts the countdown; confirm it in the clips. SCP-181's handler runs before the OA1 mirror's
+# CivilianProtection, which blocks the remaining hits on this unarmed Class-D with its own warning.
+foreach ($burst in 1, 2, 3) {
+    $target = PlayerState $dummy
+    $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
     $null = Invoke-LabInput @{ id = "dodge-$burst"; frames = 420; inputFrames = 20; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
     $result.clips["dodge$burst"] = "dodge-$burst"
     $result.dodgeTarget["after$burst"] = (PlayerState $dummy).health

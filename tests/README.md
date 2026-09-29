@@ -64,7 +64,7 @@ dotnet build tests/DamageProbe.csproj -c Release -p:Game="D:\steam\steamapps\com
 `host-hsm-hints.ps1` is a one-client scenario for the metarepo host runner
 (`.tests/offline-clients`). On the client it shows the role card, forces a last stand, collects
 a Medkit with native input for a copy notice, escapes to Chaos for the recoloured card and runs
-`scp181 clear`. The client then joins NTF and shoots a dummy SCP-181 in two short bursts to show
+`scp181 clear`. The client then joins NTF and shoots a dummy SCP-181 in three short bursts to show
 the attacker's dodge countdown. `host-hsm-hints.config.yml` keeps defaults except
 `copy_chance: 1`, no round-start pick and debug logging. Dodge stays random at 0.5: the last stand
 retries until it fires, and the dodge countdown is confirmed in the burst clips.
