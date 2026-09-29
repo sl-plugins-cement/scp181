@@ -1,5 +1,7 @@
 # Host walkthrough fixture (tests/host-hsm-hints.ps1): defaults plus a guaranteed item copy, no
 # round-start pick and debug logging. Dodge stays random at 0.5; the walkthrough retries.
+# keep_passives_after_escape keeps the escape recolour step valid on builds that end the role on
+# escape; builds without the option ignore the key.
 is_enabled: true
 debug: true
 auto_select_on_round_start: false
@@ -14,6 +16,7 @@ unlock_reroll_cooldown_seconds: 8
 survive_chances: 1
 survive_immunity_seconds: 1.5
 pocket_escape_chances: 1
+keep_passives_after_escape: true
 damage_reduction_intensity: 50
 bodyshot_reduction_intensity: 4
 copy_msg_seconds: 3
