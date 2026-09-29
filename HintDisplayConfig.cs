@@ -7,7 +7,7 @@ public sealed class HintDisplayConfig
     [Description("If true, missing HintServiceMeow falls back to conservative vanilla hints. Leave false unless deliberate compatibility is required.")]
     public bool EnableVanillaFallback { get; set; } = false;
 
-    [Description("HSM group used for this plugin's hints. Keep it unique per plugin.")]
+    [Description("HSM group prefix for this plugin's hints; HsmAdapter appends a unique scope suffix.")]
     public string GroupName { get; set; } = "scp181.hints";
 
     [Description("Prefix added to hint IDs before they are sent to HSM. Keep it unique per plugin.")]

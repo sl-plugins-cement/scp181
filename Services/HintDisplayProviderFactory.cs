@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace Scp181.Services;
 
@@ -5,25 +8,23 @@ internal static class HintDisplayProviderFactory
 {
     public static IHintDisplayProvider Create(HintDisplayConfig config)
     {
-        if (HsmHintDisplayProvider.IsHsmLoaded)
+        try
         {
-            HsmHintDisplayProvider hsmProvider = new(config);
-            if (hsmProvider.TryInitialize(logResult: false))
-            {
-                return hsmProvider;
-            }
-
-            if (!config.EnableVanillaFallback)
-            {
-                return new NullHintDisplayProvider("HintServiceMeow.dll is loaded, but the required HSM API was not found.");
-            }
+            return CreateWithAdapter(config);
         }
-
-        if (config.EnableVanillaFallback)
+        catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or TypeLoadException)
         {
-            return new VanillaCompatibilityHintProvider(config);
+            // The role and its passives must still work when the UI dependency is missing.
+            return config.EnableVanillaFallback
+                ? new VanillaCompatibilityHintProvider(config)
+                : new NullHintDisplayProvider("HsmAdapter.dll is missing or incompatible.");
         }
-
-        return new NullHintDisplayProvider("HintServiceMeow.dll is not loaded or was not loaded before this plugin.");
     }
+
+    // Kept separate so a missing HsmAdapter assembly fails here, inside Create's handler.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static IHintDisplayProvider CreateWithAdapter(HintDisplayConfig config) =>
+        config.EnableVanillaFallback && !HsmAdapter.Hints.IsReady
+            ? new VanillaCompatibilityHintProvider(config)
+            : new HsmHintDisplayProvider(config);
 }
