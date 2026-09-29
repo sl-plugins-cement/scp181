@@ -33,7 +33,7 @@ public sealed class ProbeCommand : ICommand
 {
     public string Command => "damageprobe";
     public string[] Aliases => Array.Empty<string>();
-    public string Description => "Local QA: list/state/damage/sethp/escape/protect/cancelrole/place/attack106/attack049/attack3114";
+    public string Description => "Local QA: list/state/damage/sethp/escape/protect/cancelrole/place/pickup/attack106/attack049/attack3114";
     public bool Execute(ArraySegment<string> args, ICommandSender sender, out string response)
     {
         if (!sender.CheckPermission(PlayerPermissions.PlayersManagement, out response)) return false;
@@ -60,6 +60,16 @@ public sealed class ProbeCommand : ICommand
                 p.Position = t.Position + offset;
                 p.LookRotation = new Vector2(0f, Quaternion.LookRotation(-offset).eulerAngles.y);
                 break;
+            }
+            // pickup <id> <ItemType>: drop a pickup just ahead of the player's feet for a native E pickup.
+            case "pickup":
+            {
+                var type = (ItemType)Enum.Parse(typeof(ItemType), args.At(2), true);
+                Vector3 ahead = p.ReferenceHub.PlayerCameraReference.forward; ahead.y = 0f;
+                Vector3 at = p.Position + (ahead.sqrMagnitude > 0.01f ? ahead.normalized * 0.6f : Vector3.zero);
+                var pickup = Pickup.Create(type, at);
+                response = pickup == null ? "pickup not created" : $"pickup serial={pickup.Serial} type={type} at=({at.x:F2},{at.y:F2},{at.z:F2})";
+                return pickup != null;
             }
             // attack106 <scp id> <target id>: feed Scp106Attack the same command payload the client sends.
             case "attack106":

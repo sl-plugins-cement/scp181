@@ -1,0 +1,46 @@
+# Host walkthrough fixture (tests/host-hsm-hints.ps1): defaults plus a guaranteed item copy, no
+# round-start pick and debug logging. Dodge stays random at 0.5; the walkthrough retries.
+# keep_passives_after_escape keeps the escape recolour step valid on builds that end the role on
+# escape; builds without the option ignore the key.
+is_enabled: true
+debug: true
+auto_select_on_round_start: false
+min_players: 5
+copy_chance: 1
+dodge_chance: 0.5
+damage_reduction_table:
+  Firearm: 0.1
+scp_damage_cap: 10
+unlock_chance: 0.3
+unlock_reroll_cooldown_seconds: 8
+survive_chances: 1
+survive_immunity_seconds: 1.5
+pocket_escape_chances: 1
+keep_passives_after_escape: true
+damage_reduction_intensity: 50
+bodyshot_reduction_intensity: 4
+copy_msg_seconds: 3
+dodge_msg_seconds: 5
+survive_msg_seconds: 3
+scp_color: '#FF9500'
+ntf_color: '#4DA6FF'
+chaos_color: '#1E6B3A'
+role_intro_y: 1000
+dodge_msg_y: 800
+survive_msg_y: 780
+cassie_transmission: .G5 SCP 1 8 1 HAS BEEN CONTAINED SUCCESSFULLY .G6
+cassie_subtitles: SCP-181 已被重新收容
+death_announce: <b>[<color=#FF9500>SCP181</color>]已被重新收容，收容者[<color=#8DEEEE>{name}</color>]</b>
+death_announce_seconds: 8
+died_cassie_enable: true
+hint_display:
+  enable_vanilla_fallback: false
+  group_name: scp181.hints
+  tag_prefix: scp181.
+  default_x: 0
+  notice_y: 760
+  notice_text_size: 24
+  prompt_text_size: 20
+  line_height: 0
+  force_fast_updates: false
+  keybind_token_format: '[key:{0}]'

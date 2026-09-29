@@ -5,7 +5,7 @@ Class-D with absurd survivability — heavy damage mitigation, item duplication 
 unlocks. SCP-181 has no objective beyond staying alive inside the facility.
 
 - Framework: LabAPI 1.1.7+ / .NET Framework 4.8; no EXILED dependencies
-- HUD: HintServiceMeow through the shared hint display provider
+- HUD: [HsmAdapter](https://github.com/sl-plugins-cement/HsmAdapter) over HintServiceMeow
 - Source material: [SCP-181 - Lucky Charm](https://scp-wiki-cn.wikidot.mer.run/scp-181)
 
 In-game text is Chinese by design; everything else in this repository is English.
@@ -115,16 +115,24 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 The default `role_intro_y` is now `1000`. Existing configs retain their saved value; change
 `role_intro_y: 900` to `role_intro_y: 1000` to move the introduction in an existing installation.
 
-Hints go through the shared HintServiceMeow provider (`Services/`), which uses stable IDs and
-groups so this plugin's hints compose with other plugins instead of fighting them. When HSM is
-not loaded the plugin logs once and displays nothing. Set `hint_display.enable_vanilla_fallback`
-to `true` to opt into throttled vanilla hints instead.
+Hints go through the plugin's provider (`Services/`) into one HsmAdapter scope with stable keys
+(`tag_prefix` plus `role`, `dodge`, `survive` or `copy`), so they compose with other plugins
+instead of fighting them. The role card is persistent. While visible, the dodge, last-stand and
+copy notices reserve a centred 1100 x 60 band on the adapter's shared canvas, so other plugins'
+adapter notices are placed around them. When HintServiceMeow is unavailable the plugin logs once
+and displays nothing. Set `hint_display.enable_vanilla_fallback` to `true` to opt into throttled
+vanilla hints instead.
 
 ## Building
 
 ```
 dotnet build -c Release
 ```
+
+The build references HsmAdapter from source. Clone
+[`sl-plugins-cement/HsmAdapter`](https://github.com/sl-plugins-cement/HsmAdapter) beside this
+checkout as `..\HsmAdapter`, or pass `-p:HsmAdapterProject=<path to HsmAdapter.csproj>`. Without
+either, the build stops with an error naming both options.
 
 The project uses a sibling `_buildrefs` directory when available; otherwise it checks the
 standard Steam dedicated-server install. Always build against the target server's assemblies.
@@ -137,7 +145,9 @@ dotnet build -c Release -p:SCP_SL_MANAGED="D:\steam\steamapps\common\SCP Secret 
 Install `bin/Release/net48/Scp181.dll` in the server's
 `%APPDATA%/SCP Secret Laboratory/LabAPI/plugins/global/` (or `plugins/<port>/`) and restart.
 Remove the previous SCP-181 plugin from its old loader directory before using this build.
-Only the plugin DLL is needed; do not copy the game reference assemblies.
+Also install the matching `HsmAdapter.dll` from that HsmAdapter build (exactly one copy per port)
+in the same LabAPI plugin folder; LabAPI cannot enable SCP-181 without it. Do not copy the game
+reference assemblies.
 HintServiceMeow is optional and must be a LabAPI-compatible build; the identity line and passives
 work without it. HUD hints follow the fallback option described above.
 

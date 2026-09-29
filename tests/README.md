@@ -13,7 +13,8 @@ an SCP dummy beside the target facing it, and `damageprobe attack106 <scp id> <t
 `damageprobe attack049 <scp id> <target id>` feed the native attack subroutine the same command
 payload a client sends, so range, line of sight, cooldown and effect gating run natively.
 `damageprobe escape <id>` requests a native role change with Escaped reason; it does not
-establish escape-zone traversal. `protect` and `cancelrole` take `<id> true|false` and toggle
+establish escape-zone traversal. `damageprobe pickup <id> <ItemType>` drops a pickup just ahead of
+the player's feet; the player collects it with native input. `protect` and `cancelrole` take `<id> true|false` and toggle
 local fixture event cancellation. Always reset these flags after the case.
 
 Set dodge_chance to 0 for deterministic damage checks. A raw 100 hit from 100 HP should remain
@@ -55,6 +56,33 @@ Build the optional probe against the same server with:
 ```powershell
 dotnet build tests/DamageProbe.csproj -c Release -p:Game="D:\steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed"
 ```
+
+`dotnet build -c Release` also builds HsmAdapter from source; see the main README for its location.
+
+## HSM hint walkthrough
+
+`host-hsm-hints.ps1` is a one-client scenario for the metarepo host runner
+(`.tests/offline-clients`). On the client it shows the role card, forces a last stand, collects
+a Medkit with native input for a copy notice, escapes to Chaos for the recoloured card and runs
+`scp181 clear`. The client then joins NTF and shoots a dummy SCP-181 in three short bursts to show
+the attacker's dodge countdown. `host-hsm-hints.config.yml` keeps defaults except
+`copy_chance: 1`, no round-start pick and debug logging. Dodge stays random at 0.5: the last stand
+retries until it fires, and the dodge countdown is confirmed in the burst clips.
+
+From `.tests/offline-clients`, after committing and building the plugin, HsmAdapter and the probe:
+
+```powershell
+python tools/package.py --repo <scp181 checkout> --out runtime/candidates/<unique name> `
+  --plugin bin/Release/net48/Scp181.dll --plugin <HsmAdapter>/bin/Release/net48/HsmAdapter.dll `
+  --plugin tests/bin/Release/net48/Scp181DamageProbe.dll `
+  --file configs/8910/Scp181/config.yml=tests/host-hsm-hints.config.yml `
+  --ready-command "/scp181 status" --ready-contains "SCP-181"
+python tools/host.py run --package <returned package> --scenario <scp181 checkout>/tests/host-hsm-hints.ps1 --audio
+```
+
+Review the screenshots and clips: the two-line card centred at Y=1000 (orange, then Chaos green),
+the last-stand notice at Y=780 and the copy notice at Y=800 for 3 s each, the countdown at Y=800
+for 5 s, and no card after `scp181 clear`.
 
 ## Identity line and migration client checklist
 
