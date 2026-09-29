@@ -10,6 +10,17 @@
   visible, so other plugins' adapter notices avoid them.
 - Timed hints now expire on the game thread through the adapter instead of thread-pool timers.
 
+## 2.1.0 — balance
+
+- Escaping as MTF or Chaos now ends SCP-181 by default; `keep_passives_after_escape` restores
+  the old behavior. An escaped, fully armed SCP-181 was nearly unkillable.
+- Defaults: `dodge_chance` 0.5 → 0.05, `damage_reduction_table` empty (was `Firearm: 0.1`),
+  `damage_reduction_intensity` 50 → 6 (3% less damage), `bodyshot_reduction_intensity` 4 → 0.
+  Firearm damage taken rises from about 3% to 92% on average.
+- SCP hits are capped only with `scp_damage_cap_chance` (default 0.12). Uncapped SCP hits land in
+  full and SCP instant kills kill.
+- Existing `config.yml` files keep their saved values; update them to apply the new balance.
+
 ## 2.0.3
 
 - Show SCP-181 as an orange look-at custom-info line, following ReinforcementsSystem's identity

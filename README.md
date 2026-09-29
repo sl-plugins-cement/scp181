@@ -1,8 +1,7 @@
 # SCP-181 (Lucky Charm)
 
 An SCP:SL role plugin for LabAPI. At round start one player is quietly turned into **SCP-181**, a
-Class-D with absurd survivability — heavy damage mitigation, item duplication and lucky door
-unlocks. SCP-181 has no objective beyond staying alive inside the facility.
+lucky Class-D — occasional dodged hits and survived SCP attacks, item duplication and lucky door unlocks. SCP-181 has no objective beyond staying alive inside the facility.
 
 - Framework: LabAPI 1.1.7+ / .NET Framework 4.8; no EXILED dependencies
 - HUD: [HsmAdapter](https://github.com/sl-plugins-cement/HsmAdapter) over HintServiceMeow
@@ -37,7 +36,7 @@ standalone. This check does not prevent another plugin assigning a new role to S
 While assigned, the player's look-at panel shows a bold orange `SCP-181` line under their
 nickname, using the native custom-info field like ReinforcementsSystem's faction line. The
 group badge (PlayerBadge, RA groups) is left untouched, and the line does not appear in the
-**N** player list. It stays after escape; HUD role card colors can still change with the team.
+**N** player list. With `keep_passives_after_escape` it stays after escape; HUD role card colors change with the team.
 The original custom info and its visibility are restored on removal, death, reassignment, round
 end or plugin disable, unless another plugin has replaced the line. Native look-at visibility
 rules (distance, line of sight, etc.) still apply.
@@ -52,14 +51,14 @@ rules (distance, line of sight, etc.) still apply.
 3. **Damage reduction table** — `DamageReductionTable` maps a damage source to the fraction of
    damage that still lands. Keys are native damage aliases or firearm `ItemType` names; a specific weapon type wins over
    the generic `Firearm` key, and the attacker's role name is tried last.
-4. **SCP damage cap** — no single hit from an SCP exceeds `ScpDamageCap`. This includes the
-   instant-kill abilities (SCP-173's neck snap, SCP-049's instakill, SCP-106's grab), which are
-   converted into capped damage instead of a guaranteed death.
+4. **Lucky SCP cap** — each SCP hit has a `ScpDamageCapChance` chance of being capped at
+   `ScpDamageCap`. A capped instant-kill ability (SCP-173's neck snap, SCP-049's instakill,
+   SCP-106's grab) becomes capped damage; an uncapped one kills, and last stand does not apply.
 5. **Status effect immunity** — damage-over-time from bleeding, poison, hypothermia and similar
    status effects never lands, and those debuffs are stripped twice a second. SCP attack states
    are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and the Pocket Dimension run
-   their course, and their damage takes the SCP mitigation above. SCP-3114's strangulation is
-   reduced and capped but never dodged, because the hold breaks as soon as a tick is refused.
+   their course, and their damage takes the SCP cap roll above. SCP-3114's strangulation takes
+   the cap roll but is never dodged, because the hold breaks as soon as a tick is refused.
    Shared movement effects (`Ensnared` and `Concussed`) are preserved.
 6. **Last stand** — a lethal hit is survived on 1 HP, `SurviveChances` times per assignment,
    followed by `SurviveImmunitySeconds` of full immunity. Lethality is evaluated after native damage reduction and shields.
@@ -69,9 +68,9 @@ rules (distance, line of sight, etc.) still apply.
 8. **Lucky unlocks** — keycard doors and SCP locker chambers open with `UnlockChance`.
    SCP-079's own doors and anything SCP-079 has locked are excluded. A failed roll is held for
    `UnlockRerollCooldownSeconds` so spamming the interact key cannot force an open.
-9. **Escape keeps everything** — escaping as MTF or Chaos retains every passive; only the role
-   card color changes (MTF blue `#4DA6FF`, Chaos dark green `#1E6B3A`). Other completed
-   role changes remove the identity and passives.
+9. **Escape ends the role** — a completed escape as MTF or Chaos removes the identity and every
+   passive, like any other role change. Set `KeepPassivesAfterEscape` to keep them; the role card
+   then turns MTF blue `#4DA6FF` or Chaos dark green `#1E6B3A`.
 
 Scripted terminations — the Alpha Warhead, pit crushing, SCP-079 recontainment, the friendly-fire
 detector and the RA `kill` command — bypass every mitigation above on purpose. SCP-181 is a
@@ -95,16 +94,18 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
 | `copy_chance` | `0.1` | Item duplication chance |
-| `dodge_chance` | `0.5` | Chance an attack is negated |
-| `damage_reduction_table` | `Firearm: 0.1` | Damage source → fraction of damage kept |
-| `scp_damage_cap` | `10` | Cap per SCP hit, and the value SCP instant-kills become |
+| `dodge_chance` | `0.05` | Chance an attack is negated |
+| `damage_reduction_table` | empty | Damage source → fraction of damage kept |
+| `scp_damage_cap` | `10` | Cap per capped SCP hit, and the value a capped SCP instant kill becomes |
+| `scp_damage_cap_chance` | `0.12` | Chance an SCP hit is capped |
 | `unlock_chance` | `0.3` | Keycard door / SCP locker unlock chance |
 | `unlock_reroll_cooldown_seconds` | `8` | Hold time on a failed unlock roll |
 | `survive_chances` | `1` | Last-stand charges |
 | `survive_immunity_seconds` | `1.5` | Immunity window after a last stand |
 | `pocket_escape_chances` | `1` | Guaranteed Pocket Dimension escapes |
-| `damage_reduction_intensity` | `50` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
-| `bodyshot_reduction_intensity` | `4` | `BodyshotReduction` intensity; the game clamps this at 4 (−15%) |
+| `keep_passives_after_escape` | `false` | Keep SCP-181 after escaping as MTF or Chaos |
+| `damage_reduction_intensity` | `6` | `DamageReduction` intensity; the game keeps `1 - intensity * 0.005` of the damage, so 50 is −25% and 200 is immune |
+| `bodyshot_reduction_intensity` | `0` | `BodyshotReduction` intensity; the game clamps this at 4 (−15%) |
 | `scp_color` / `ntf_color` / `chaos_color` | orange / blue / dark green | Role card colors |
 | `role_intro_y` / `dodge_msg_y` / `survive_msg_y` | `1000` / `800` / `780` | HSM Y coordinates |
 | `cassie_transmission` / `death_announce` | … | Death broadcast text |

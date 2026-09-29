@@ -128,7 +128,7 @@ namespace Scp181.Events
 
         private static void ResetFlags() => UnlockCooldowns.Clear();
 
-        // ================= Escape keeps the passives =================
+        // ================= Escape =================
 
         private void OnChangedRole(PlayerChangedRoleEventArgs ev)
         {
@@ -140,7 +140,7 @@ namespace Scp181.Events
                 return;
 
             // Inspect the completed swap, so a cancelled role request cannot strip ownership.
-            if (ev.ChangeReason != RoleChangeReason.Escaped || !ev.Player.IsAlive ||
+            if (ev.ChangeReason != RoleChangeReason.Escaped || !ev.Player.IsAlive || !Config.KeepPassivesAfterEscape ||
                 (!NtfRoles.Contains(ev.Player.Role) && !ChaosRoles.Contains(ev.Player.Role)))
             {
                 Scp181Manager.Remove(ev.Player);
@@ -216,16 +216,19 @@ namespace Scp181.Events
             // ProcessDamage and any arithmetic done here. It has to be turned into a real number
             // BEFORE anything multiplies it, otherwise a reduction multiplier turns a guaranteed
             // kill into "Damage <= 0 => no damage at all".
+            // One roll per hit decides whether the SCP cap applies at all.
+            bool scpCapped = fromScp && UnityEngine.Random.value < Config.ScpDamageCapChance;
+
             if (damage.Damage == StandardDamageHandler.KillValue)
             {
                 // Scripted terminations (warhead, pit, recontainment, RA kill, friendly-fire
                 // detector) are deliberately left alone: SCP-181 is a survivability role, not an
                 // exemption from the round's own kill switches.
-                if (!fromScp)
+                if (!scpCapped)
                     return;
 
                 // SCP-173's neck snap, SCP-049's instakill and SCP-106's grab all arrive here.
-                // They obey the same cap as any other SCP hit. The clamp keeps a misconfigured
+                // Uncapped, they kill (last stand does not apply to KillValue); capped, they obey the cap. The clamp keeps a misconfigured
                 // negative cap from re-creating the instant-kill sentinel.
                 damage.Damage = Mathf.Max(0f, Config.ScpDamageCap);
             }
@@ -240,7 +243,7 @@ namespace Scp181.Events
             if (multiplier < 1f)
                 damage.Damage *= multiplier;
 
-            if (fromScp)
+            if (scpCapped)
                 damage.Damage = Mathf.Min(damage.Damage, Mathf.Max(0f, Config.ScpDamageCap));
 
             // Flat dodge chance against everything that got this far.
