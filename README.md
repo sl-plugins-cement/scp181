@@ -121,7 +121,7 @@ instead of fighting them. The role card is persistent. While visible, the dodge,
 copy notices reserve a centred 1100 x 60 band on the adapter's shared canvas, so other plugins'
 adapter notices are placed around them. When HintServiceMeow is unavailable the plugin logs once
 and displays nothing. Set `hint_display.enable_vanilla_fallback` to `true` to opt into throttled
-vanilla hints instead; that fallback also covers a missing `HsmAdapter.dll`.
+vanilla hints instead.
 
 ## Building
 
@@ -146,7 +146,8 @@ Install `bin/Release/net48/Scp181.dll` in the server's
 `%APPDATA%/SCP Secret Laboratory/LabAPI/plugins/global/` (or `plugins/<port>/`) and restart.
 Remove the previous SCP-181 plugin from its old loader directory before using this build.
 Also install the matching `HsmAdapter.dll` from that HsmAdapter build (exactly one copy per port)
-in the same LabAPI plugin folder. Do not copy the game reference assemblies.
+in the same LabAPI plugin folder; LabAPI cannot enable SCP-181 without it. Do not copy the game
+reference assemblies.
 HintServiceMeow is optional and must be a LabAPI-compatible build; the identity line and passives
 work without it. HUD hints follow the fallback option described above.
 

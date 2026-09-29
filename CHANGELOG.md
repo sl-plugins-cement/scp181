@@ -4,13 +4,11 @@
 
 - Hints now go through one shared HsmAdapter scope instead of this plugin's own
   HintServiceMeow reflection provider. Positions, sizes, colours and durations are unchanged.
-  Install the matching `HsmAdapter.dll` beside `Scp181.dll`; builds reference HsmAdapter from
-  source (`..\HsmAdapter` or `-p:HsmAdapterProject=<path>`).
+  `HsmAdapter.dll` is now required beside `Scp181.dll`; LabAPI does not enable the plugin without
+  it. Builds reference HsmAdapter from source (`..\HsmAdapter` or `-p:HsmAdapterProject=<path>`).
 - The dodge, last-stand and copy notices reserve their band on the adapter's shared canvas while
   visible, so other plugins' adapter notices avoid them.
 - Timed hints now expire on the game thread through the adapter instead of thread-pool timers.
-- A missing `HsmAdapter.dll` disables only the hints (or uses the vanilla fallback when enabled);
-  the role and its passives still load.
 
 ## 2.0.3
 
