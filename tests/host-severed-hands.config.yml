@@ -1,0 +1,5 @@
+# Deterministic reproduction: role defaults except no automatic pick or random dodge.
+is_enabled: true
+debug: true
+auto_select_on_round_start: false
+dodge_chance: 0

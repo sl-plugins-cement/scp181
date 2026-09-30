@@ -117,7 +117,7 @@ public sealed class ProbeCommand : ICommand
         string badge = $" customInfo={p.CustomInfo} badge={p.GroupName} info={p.InfoArea}";
         response = badge + $" id={p.PlayerId} role={p.Role} hp={p.Health:F1} room={room} ensnared={effects.GetEffect<CustomPlayerEffects.Ensnared>().Intensity} reduction={effects.GetEffect<CustomPlayerEffects.DamageReduction>().Intensity}"
             + $" corroding={effects.GetEffect<CustomPlayerEffects.Corroding>().IsEnabled} pocket={effects.GetEffect<CustomPlayerEffects.PocketCorroding>().IsEnabled} cardiac={effects.GetEffect<CustomPlayerEffects.CardiacArrest>().IsEnabled}"
-            + $" traumatized={effects.GetEffect<CustomPlayerEffects.Traumatized>().IsEnabled} bleeding={effects.GetEffect<CustomPlayerEffects.Bleeding>().IsEnabled} strangled={effects.GetEffect<CustomPlayerEffects.Strangled>().IsEnabled}";
+            + $" traumatized={effects.GetEffect<CustomPlayerEffects.Traumatized>().IsEnabled} bleeding={effects.GetEffect<CustomPlayerEffects.Bleeding>().IsEnabled} strangled={effects.GetEffect<CustomPlayerEffects.Strangled>().IsEnabled} severed={effects.GetEffect<CustomPlayerEffects.SeveredHands>().IsEnabled}";
         return true;
     }
 }
