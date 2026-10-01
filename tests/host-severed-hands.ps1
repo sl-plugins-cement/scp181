@@ -1,6 +1,6 @@
 param($Context)
-# Quick-tier hand-loss damage reproduction. Native RA enables the same SeveredHands effect
-# as SCP-330; this isolates its native ticking damage and does not demonstrate bowl input.
+# Quick-tier hand-loss walkthrough: SCP-181 must bleed out like any Class-D. Native RA enables the
+# same SeveredHands effect as SCP-330; this isolates its ticking damage, not bowl input.
 $ErrorActionPreference = 'Stop'
 $actorId = [int]$Context.Actor.id
 $runEvidence = $Context.Evidence
@@ -56,23 +56,11 @@ do {
 } while ((Get-Date) -lt $deadline)
 if ($reply -notmatch '已将玩家' -or (Server '/scp181 status') -notmatch "ID: $actorId\b") { throw 'SCP-181 assignment not ready' }
 Hands 'scp181'
-$null = Invoke-LabInput @{ id = 'scp181-severed-hands'; frames = 1800; capture = $true; audio = $true }
+# Last stand catches the first lethal tick (1 HP, short immunity); the next ticks must kill.
+$null = Invoke-LabInput @{ id = 'scp181-severed-hands'; frames = 2700; capture = $true; audio = $true }
 $observations.cases.scp181.after = State
-$observations.cases.scp181.effectAfter = Server "/damageprobe state $actorId"
 $observations.cases.scp181.statusAfter = Server '/scp181 status'
-$observations.screenshot = Invoke-LabScreenshot -Name 'scp181-hands-severed-alive'
 Save
-$s = State
-if ($s.role -ne 'ClassD' -or $s.godMode -or $s.health -ne 100 -or $observations.cases.scp181.effectAfter -notmatch 'severed=True') { throw 'Reported unchanged-HP survival was not reproduced' }
-
-# Same life, same active hand-loss effect: removing only SCP-181 must restore bleed-out.
-$sameLife = $s.life
-if ((Server '/scp181 clear') -notmatch '已清除') { throw 'SCP-181 removal failed' }
-$probe = Server "/damageprobe state $actorId"
-if ((State).life -ne $sameLife -or $probe -notmatch 'severed=True') { throw 'Removal changed life or removed the native effect' }
-$null = Invoke-LabInput @{ id = 'cleared-severed-hands'; frames = 1800; capture = $true; audio = $true }
-$observations.cases.afterClear = State
-Save
-if ((State).role -ne 'Spectator') { throw 'Same-life control did not die after SCP-181 removal' }
-$observations.reproduced = $true
+if ((State).role -ne 'Spectator') { throw 'SCP-181 survived severed hands within the recorded 45-second interval' }
+$observations.verified = $true
 Save

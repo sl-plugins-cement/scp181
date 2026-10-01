@@ -59,7 +59,8 @@ rules (distance, line of sight, etc.) still apply.
    are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and the Pocket Dimension run
    their course, and their damage takes the SCP cap roll above. SCP-3114's strangulation takes
    the cap roll but is never dodged, because the hold breaks as soon as a tick is refused.
-   Shared movement effects (`Ensnared` and `Concussed`) are preserved.
+   Shared movement effects (`Ensnared` and `Concussed`) are preserved. Severed hands from
+   SCP-330 is not a status effect here: its bleed-out lands and kills after the last stand.
 6. **Last stand** — a lethal hit is survived on 1 HP, `SurviveChances` times per assignment,
    followed by `SurviveImmunitySeconds` of full immunity. Lethality is evaluated after native damage reduction and shields.
 7. **Pocket Dimension escape** — the first lethal Pocket Dimension outcome per assignment is

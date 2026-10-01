@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.1.1
 
+- Severed hands from SCP-330 kills SCP-181 again. Its bleed-out was treated as an immune status
+  effect, so a greedy SCP-181 kept full health indefinitely; it now lands like any other damage,
+  with the usual last stand.
 - Hints now go through one shared HsmAdapter scope instead of this plugin's own
   HintServiceMeow reflection provider. Positions, sizes, colours and durations are unchanged.
   `HsmAdapter.dll` is now required beside `Scp181.dll`; LabAPI does not enable the plugin without
