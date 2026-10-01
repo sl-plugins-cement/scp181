@@ -20,8 +20,9 @@ internal static class RegressionChecks
             Check(!DamageSources.IsStatusEffect(pocket), "pocket decay must not be immune");
             Check(!DamageSources.IsScpAttack(pocket), "pocket trap sentinel must remain lethal after escape charge");
             foreach (var translation in new[] { DeathTranslations.Bleeding, DeathTranslations.Poisoned,
-                DeathTranslations.Hypothermia, DeathTranslations.Scp207, DeathTranslations.SeveredHands })
+                DeathTranslations.Hypothermia, DeathTranslations.Scp207 })
                 Check(DamageSources.IsStatusEffect(Universal(translation)), "debuff immunity: " + translation.Id);
+            Check(!DamageSources.IsStatusEffect(Universal(DeathTranslations.SeveredHands)), "SCP-330 severed hands stays lethal");
 
             Check(!DamageSources.IsStatusEffect(Universal(DeathTranslations.CardiacArrest)), "preserve cardiac damage");
             Check(!DamageSources.IsStatusEffect(Universal(DeathTranslations.Decontamination)), "preserve decontamination");

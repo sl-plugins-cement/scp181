@@ -13,6 +13,10 @@ internal static class DamageSources
     public static bool IsScpAttack(StandardDamageHandler damage)
         => damage is ScpDamageHandler || damage is Scp3114DamageHandler;
 
+    /// <summary>
+    /// Damage-over-time from a removable debuff. Severed hands is excluded: it is SCP-330's
+    /// penalty for taking a third candy and has no cure, so it must stay lethal.
+    /// </summary>
     public static bool IsStatusEffect(StandardDamageHandler damage)
     {
         if (damage is not UniversalDamageHandler universal)
@@ -20,7 +24,7 @@ internal static class DamageSources
         byte id = universal.TranslationId;
         return id == DeathTranslations.Asphyxiated.Id || id == DeathTranslations.Bleeding.Id
             || id == DeathTranslations.Poisoned.Id || id == DeathTranslations.Scp207.Id
-            || id == DeathTranslations.SeveredHands.Id || id == DeathTranslations.Hypothermia.Id;
+            || id == DeathTranslations.Hypothermia.Id;
     }
 
     public static string GetName(StandardDamageHandler damage)
