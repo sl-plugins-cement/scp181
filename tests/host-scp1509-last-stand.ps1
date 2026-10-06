@@ -146,8 +146,9 @@ if ((Server "/scp181 set $victimId") -notmatch '已将玩家') { throw 'Lacuna S
 $null = Server "/damageprobe escapentf $victimId"
 WaitFor { (State $victimId).role -eq 'NtfPrivate' } 'Lacuna target did not escape to NTF'
 if ((Server '/scp181 status') -notmatch "ID: $victimId\b") { throw 'Escaped target did not retain SCP-181' }
-$slot = [Array]::IndexOf(@((State $actorId).items), 'GunShotgun') + 1
-$null = Invoke-LabInventory -Slot $slot -Expect GunShotgun
+# The operative kit has one firearm; use its native primary-weapon hotkey.
+$null = Invoke-LabInput @{ frames = 90; inputFrames = 2; keys = @(49) }
+WaitFor { (State $actorId).held -eq 'GunShotgun' } 'Lacuna shotgun not selected'
 $null = Server "/damageprobe place $victimId $actorId 0 3"
 Start-Sleep -Seconds 4
 $null = Server "/damageprobe sethp $victimId 10"
