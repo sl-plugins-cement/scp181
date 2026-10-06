@@ -1,4 +1,4 @@
-param($Context, [switch]$LacunaOnly, [switch]$SkipKnife)
+param($Context, [switch]$LacunaOnly, [switch]$SkipKnife, [switch]$EchoOnly)
 # Arranged roles/health; strikes and item selection use real client input.
 $ErrorActionPreference = 'Stop'
 $actorId = [int]$Context.Actor.id
@@ -27,10 +27,10 @@ function Spawn([string]$name, [string]$role) {
     $null = Server "/god $id disable"
     return $id
 }
-function Strike([string]$name, [int]$frames = 210, [switch]$AlreadyAimed) {
+function Strike([string]$name, [int]$frames = 210, [int]$InputFrames = 30, [switch]$AlreadyAimed) {
     $target = State $victimId
     if (!$AlreadyAimed) { $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z } }
-    $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = 30; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
+    $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = $InputFrames; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
     $observations.cases[$name] = [ordered]@{
         victim = State $victimId; spectator = State $spectatorId
         knife = Server "/damageprobe knifestate $actorId"
@@ -100,10 +100,12 @@ if ((Server "/damageprobe knifestate $actorId") -match 'cooldownLeft=0.000') { t
 if (@($Context.Actors).Count -ne 2) { throw 'O-11 walkthrough needs --pair' }
 $victimId = [int]$Context.Actors[1].id
 if ($SkipKnife) { $spectatorId = $victimId }
-foreach ($weapon in @(
+$weapons = @(
     @{ item = 'o11-redaction-fsp9'; role = 'blank'; type = 'GunFSP9'; key = 49; toy = 'redactionRigs' },
     @{ item = 'o11-echo-com18'; role = 'echo'; type = 'GunCOM18'; key = 50; toy = 'echoCores' }
-)) {
+)
+if ($EchoOnly) { $weapons = @($weapons | Where-Object item -eq 'o11-echo-com18') }
+foreach ($weapon in $weapons) {
     $null = Server "/forcerole $actorId Spectator"
     WaitFor { (State $actorId).role -eq 'Spectator' } 'O-11 attacker reset failed'
     if ((Server "/reinforcements sub o11 $($weapon.role) $actorId") -notmatch 'Assigning') { throw 'O-11 kit assignment failed' }
@@ -114,7 +116,7 @@ foreach ($weapon in @(
     if ((Server "/scp181 set $victimId") -notmatch '已将玩家') { throw 'O-11 SCP-181 assignment failed' }
     $null = Server "/damageprobe escape $victimId"
     WaitFor { (State $victimId).role -eq 'ChaosConscript' } 'O-11 target did not escape to Chaos'
-    $null = Server "/damageprobe sethp $victimId 10"
+    $null = Server "/damageprobe sethp $victimId 1"
     $null = Invoke-LabInput @{ frames = 90; inputFrames = 2; keys = @($weapon.key) }
     WaitFor { (State $actorId).held -eq $weapon.type } 'O-11 firearm not selected'
     Start-Sleep -Seconds 1
@@ -122,13 +124,14 @@ foreach ($weapon in @(
     Start-Sleep -Seconds 1
     $beforeToys = Server "/damageprobe o11state $actorId"
     if ($beforeToys -notmatch "$($weapon.toy)=0") { throw "Death effect pool already exists: $beforeToys" }
-    Strike "$($weapon.item)-last-stand"
+    Strike "$($weapon.item)-last-stand" -InputFrames 2
     if ((State $victimId).role -ne 'ChaosConscript' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'O-11 last stand did not leave 1 HP' }
     $afterToys = Server "/damageprobe o11state $actorId"
     $observations.cases["$($weapon.item)-last-stand"].toys = $afterToys
     Save
     if ($afterToys -notmatch "$($weapon.toy)=0") { throw 'O-11 played a death effect on a survivor' }
-    Strike "$($weapon.item)-confirmed-death"
+    if ((State $actorId).firearm.ammo -lt 1) { throw 'No round remains for the confirmed-death shot' }
+    Strike "$($weapon.item)-confirmed-death" -InputFrames 2
     if ((State $victimId).role -ne 'Spectator') { throw 'O-11 confirmed lethal hit did not kill' }
     $afterToys = Server "/damageprobe o11state $actorId"
     $observations.cases["$($weapon.item)-confirmed-death"].toys = $afterToys
