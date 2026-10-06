@@ -87,5 +87,40 @@ Strike 'confirmed-death'
 if ((State $victimId).role -ne 'Spectator') { throw 'Last-stand charge was not spent exactly once' }
 if ((State $spectatorId).role -ne 'ChaosConscript') { throw 'Confirmed knife death did not resurrect the spectator' }
 if ((Server "/damageprobe knifestate $actorId") -match 'cooldownLeft=0.000') { throw 'Successful resurrection did not start cooldown' }
+# Both O-11 guns must resolve last stand before creating their first death effect.
+$null = Server "/forcerole $actorId NtfSergeant"
+WaitFor { (State $actorId).role -eq 'NtfSergeant' } 'O-11 gun fixture attacker not NTF'
+$null = Server "/god $actorId enable"
+foreach ($weapon in @(
+    @{ item = 'o11-redaction-fsp9'; type = 'GunFSP9'; toy = 'redactionRigs' },
+    @{ item = 'o11-echo-com18'; type = 'GunCOM18'; toy = 'echoCores' }
+)) {
+    $null = Server "/forcerole $victimId ClassD"
+    WaitFor { (State $victimId).role -eq 'ClassD' } 'O-11 target not Class-D'
+    $null = Server "/god $victimId disable"
+    if ((Server "/scp181 set $victimId") -notmatch '已将玩家') { throw 'O-11 SCP-181 assignment failed' }
+    $null = Server "/damageprobe sethp $victimId 10"
+    $null = Server "/reinforcements items $($weapon.item) $actorId"
+    WaitFor { (State $actorId).items -contains $weapon.type } 'O-11 gun not granted'
+    $slot = [Array]::IndexOf(@((State $actorId).items), $weapon.type) + 1
+    $null = Invoke-LabInventory -Slot $slot -Expect $weapon.type
+    Start-Sleep -Seconds 1
+    $null = Server "/damageprobe place $victimId $actorId 0 3"
+    Start-Sleep -Seconds 1
+    $beforeToys = Server "/damageprobe o11state $actorId"
+    if ($beforeToys -notmatch "$($weapon.toy)=0") { throw "Death effect pool already exists: $beforeToys" }
+    Strike "$($weapon.item)-last-stand"
+    if ((State $victimId).role -ne 'ClassD' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'O-11 last stand did not leave 1 HP' }
+    $afterToys = Server "/damageprobe o11state $actorId"
+    $observations.cases["$($weapon.item)-last-stand"].toys = $afterToys
+    Save
+    if ($afterToys -notmatch "$($weapon.toy)=0") { throw 'O-11 played a death effect on a survivor' }
+    Strike "$($weapon.item)-confirmed-death"
+    if ((State $victimId).role -ne 'Spectator') { throw 'O-11 confirmed lethal hit did not kill' }
+    $afterToys = Server "/damageprobe o11state $actorId"
+    $observations.cases["$($weapon.item)-confirmed-death"].toys = $afterToys
+    Save
+    if ($afterToys -notmatch "$($weapon.toy)=[1-9]") { throw 'O-11 confirmed death did not create its effect' }
+}
 $observations.verified = $true
 Save

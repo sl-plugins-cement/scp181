@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using CommandSystem;
 using LabApi.Loader.Features.Plugins;
 using LabApi.Events.Handlers;
@@ -53,6 +54,10 @@ public sealed class ProbeCommand : ICommand
             case "protect": DamageProbe.Protect = bool.Parse(args.At(2)); break;
             case "cancelrole": DamageProbe.CancelRole = bool.Parse(args.At(2)); break;
             case "knifeeligible": Scp1509Item.SetEligible(p, bool.Parse(args.At(2))); break;
+            case "o11state":
+                response = $"redactionRigs={PrimitiveObjectToy.List.Count(t => !t.IsDestroyed && t.Base.name == "O11RedactionRig")}"
+                    + $" echoCores={PrimitiveObjectToy.List.Count(t => !t.IsDestroyed && t.Base.name == "O11EchoImpactCore")}";
+                return true;
             case "knifestate":
             {
                 var knife = p.CurrentItem as Scp1509Item;

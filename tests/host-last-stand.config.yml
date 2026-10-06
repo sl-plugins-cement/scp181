@@ -1,0 +1,4 @@
+is_enabled: true
+debug: true
+auto_select_on_round_start: false
+dodge_chance: 0
