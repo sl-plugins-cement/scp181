@@ -62,6 +62,8 @@ do {
     Start-Sleep -Seconds 3
 } while ((Get-Date) -lt $deadline)
 if ($reply -notmatch '已将玩家') { throw "SCP-181 assignment failed: $reply" }
+$null = Server "/damageprobe escape $victimId"
+WaitFor { (State $victimId).role -eq 'ChaosConscript' } 'Knife target did not escape to Chaos'
 
 # ItemType.SCP1509 is 68 in the pinned server. Give through native RA.
 $null = Server "/give $actorId 68"
@@ -70,7 +72,7 @@ $slot = [Array]::IndexOf(@((State $actorId).items), 'SCP1509') + 1
 $null = Invoke-LabInventory -Slot $slot -Expect SCP1509
 Start-Sleep -Seconds 1
 $me = State $actorId
-$null = Server ('labplacecheck {0} {1} {2} ClassD' -f $me.position.x, $me.position.y, ($me.position.z + 1.2))
+$null = Server ('labplacecheck {0} {1} {2} ChaosConscript' -f $me.position.x, $me.position.y, ($me.position.z + 1.2))
 $null = Server "/damageprobe place $victimId $actorId 0 1.2"
 Start-Sleep -Seconds 1
 $observations.before = [ordered]@{ victim = State $victimId; spectator = State $spectatorId; knife = Server "/damageprobe knifestate $actorId" }
@@ -82,7 +84,7 @@ if ((State $spectatorId).role -ne 'Spectator') { throw 'Nonlethal hit resurrecte
 
 $null = Server "/damageprobe sethp $victimId 10"
 Strike 'last-stand'
-if ((State $victimId).role -ne 'ClassD' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'Last stand did not leave 1 HP' }
+if ((State $victimId).role -ne 'ChaosConscript' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'Last stand did not leave 1 HP' }
 if ((State $spectatorId).role -ne 'Spectator') { throw 'Survived knife hit resurrected a teammate' }
 if ((Server "/damageprobe knifestate $spectatorId") -notmatch 'eligible=True') { throw 'Blocked resurrection consumed spectator eligibility' }
 if ((Server "/damageprobe knifestate $actorId") -notmatch 'cooldownLeft=0.000') { throw 'Blocked resurrection consumed knife cooldown' }
@@ -104,6 +106,8 @@ foreach ($weapon in @(
     WaitFor { (State $victimId).role -eq 'ClassD' } 'O-11 target not Class-D'
     $null = Server "/god $victimId disable"
     if ((Server "/scp181 set $victimId") -notmatch '已将玩家') { throw 'O-11 SCP-181 assignment failed' }
+    $null = Server "/damageprobe escape $victimId"
+    WaitFor { (State $victimId).role -eq 'ChaosConscript' } 'O-11 target did not escape to Chaos'
     $null = Server "/damageprobe sethp $victimId 10"
     $null = Server "/reinforcements items $($weapon.item) $actorId"
     WaitFor { (State $actorId).items -contains $weapon.type } 'O-11 gun not granted'
@@ -115,7 +119,7 @@ foreach ($weapon in @(
     $beforeToys = Server "/damageprobe o11state $actorId"
     if ($beforeToys -notmatch "$($weapon.toy)=0") { throw "Death effect pool already exists: $beforeToys" }
     Strike "$($weapon.item)-last-stand"
-    if ((State $victimId).role -ne 'ClassD' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'O-11 last stand did not leave 1 HP' }
+    if ((State $victimId).role -ne 'ChaosConscript' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01) { throw 'O-11 last stand did not leave 1 HP' }
     $afterToys = Server "/damageprobe o11state $actorId"
     $observations.cases["$($weapon.item)-last-stand"].toys = $afterToys
     Save
