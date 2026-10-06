@@ -30,7 +30,7 @@ function Spawn([string]$name, [string]$role) {
 function Strike([string]$name, [int]$frames = 210) {
     $target = State $victimId
     $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
-    $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = 2; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
+    $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = 30; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
     $observations.cases[$name] = [ordered]@{
         victim = State $victimId; spectator = State $spectatorId
         knife = Server "/damageprobe knifestate $actorId"
@@ -48,7 +48,11 @@ $null = Server "/forcerole $actorId NtfSergeant"
 WaitFor { (State $actorId).role -eq 'NtfSergeant' } 'Attacker not NTF'
 $null = Server "/god $actorId enable"
 foreach ($p in Players | Where-Object { $_.id -ne $actorId }) { $null = Server "/damageprobe knifeeligible $($p.id) false" }
-$victimId = Spawn 'Scp181KnifeTarget' 'ClassD'
+if (@($Context.Actors).Count -ne 2) { throw 'Walkthrough needs --pair for a real victim client' }
+$victimId = [int]$Context.Actors[1].id
+$null = Server "/forcerole $victimId ClassD"
+WaitFor { (State $victimId).role -eq 'ClassD' } 'Knife victim not Class-D'
+$null = Server "/god $victimId disable"
 $spectatorId = Spawn 'KnifeSpectator' 'Spectator'
 WaitFor { (Server "/damageprobe knifestate $spectatorId") -match 'eligible=True' } 'No eligible spectator'
 $deadline = (Get-Date).AddSeconds(100)

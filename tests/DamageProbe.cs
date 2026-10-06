@@ -63,7 +63,7 @@ public sealed class ProbeCommand : ICommand
             {
                 var knife = p.CurrentItem as Scp1509Item;
                 response = $"id={p.PlayerId} role={p.Role} hp={p.Health:F1} eligible={Scp1509Item.IsEligible(p)}"
-                    + (knife == null ? " knife=none" : $" knife={knife.Serial} nextRevive={knife.Base.NextResurrectTime:F3} cooldownLeft={Math.Max(0, knife.Base.NextResurrectTime - NetworkTime.time):F3}");
+                    + (knife == null ? " knife=none" : $" knife={knife.Serial} nextRevive={knife.Base.NextResurrectTime:F3} cooldownLeft={Math.Max(0, knife.Base.NextResurrectTime - NetworkTime.time):F3} meleeDamage={knife.Base.MeleeDamage:F1}");
                 return true;
             }
             // place <scp id> <target id> <dx> <dz>: stand the SCP next to the target, facing it.
