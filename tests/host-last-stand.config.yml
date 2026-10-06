@@ -2,3 +2,4 @@ is_enabled: true
 debug: true
 auto_select_on_round_start: false
 dodge_chance: 0
+keep_passives_after_escape: true

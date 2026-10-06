@@ -4,7 +4,7 @@
 
 - SCP-1509 no longer resurrects a teammate from a lethal hit survived by SCP-181's last stand.
   The selected spectator remains eligible, and the knife's resurrection cooldown is preserved.
-- ReinforcementsSystem can resolve last stand before starting O-11 death cinematics through the
+- ReinforcementsSystem can resolve last stand before starting O-11 and Lacuna death cinematics through the
   optional `TryPreventDeath(PlayerDyingEventArgs)` integration.
 
 ## 2.1.1

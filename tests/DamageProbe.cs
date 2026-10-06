@@ -51,6 +51,7 @@ public sealed class ProbeCommand : ICommand
             case "damage": p.ReferenceHub.playerStats.DealDamage(new UniversalDamageHandler(float.Parse(args.At(2)), DeathTranslations.Falldown)); break;
             case "sethp": p.Health = float.Parse(args.At(2)); break;
             case "escape": p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ChaosConscript, RoleChangeReason.Escaped); break;
+            case "escapentf": p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.NtfPrivate, RoleChangeReason.Escaped); break;
             case "protect": DamageProbe.Protect = bool.Parse(args.At(2)); break;
             case "cancelrole": DamageProbe.CancelRole = bool.Parse(args.At(2)); break;
             case "knifeeligible": Scp1509Item.SetEligible(p, bool.Parse(args.At(2))); break;

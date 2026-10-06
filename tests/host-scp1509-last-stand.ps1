@@ -1,4 +1,4 @@
-param($Context)
+param($Context, [switch]$LacunaOnly)
 # Arranged roles/health; strikes and item selection use real client input.
 $ErrorActionPreference = 'Stop'
 $actorId = [int]$Context.Actor.id
@@ -27,10 +27,10 @@ function Spawn([string]$name, [string]$role) {
     $null = Server "/god $id disable"
     return $id
 }
-function Strike([string]$name) {
+function Strike([string]$name, [int]$frames = 210) {
     $target = State $victimId
     $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
-    $null = Invoke-LabInput @{ id = $name; frames = 210; inputFrames = 2; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
+    $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = 2; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
     $observations.cases[$name] = [ordered]@{
         victim = State $victimId; spectator = State $spectatorId
         knife = Server "/damageprobe knifestate $actorId"
@@ -43,8 +43,9 @@ if ((Server '/forcestart') -notmatch 'Forced round start') { throw 'Round did no
 WaitFor { (Server '/roundtime') -match 'Round time:' } 'Round not ready'
 Start-Sleep -Seconds 3
 foreach ($command in '/decontamination disable', '/wave forcepause NTF true', '/wave forcepause Chaos true', '/reinforcements auto off', '/scp181 clear') { $null = Server $command }
-$null = Server "/forcerole $actorId ChaosConscript"
-WaitFor { (State $actorId).role -eq 'ChaosConscript' } 'Attacker not Chaos'
+if (!$LacunaOnly) {
+$null = Server "/forcerole $actorId NtfSergeant"
+WaitFor { (State $actorId).role -eq 'NtfSergeant' } 'Attacker not NTF'
 $null = Server "/god $actorId enable"
 foreach ($p in Players | Where-Object { $_.id -ne $actorId }) { $null = Server "/damageprobe knifeeligible $($p.id) false" }
 $victimId = Spawn 'Scp181KnifeTarget' 'ClassD'
@@ -85,7 +86,7 @@ if ((Server "/damageprobe knifestate $actorId") -notmatch 'cooldownLeft=0.000') 
 # The recorded tail exceeds last-stand immunity; the same knife must now kill and resurrect.
 Strike 'confirmed-death'
 if ((State $victimId).role -ne 'Spectator') { throw 'Last-stand charge was not spent exactly once' }
-if ((State $spectatorId).role -ne 'ChaosConscript') { throw 'Confirmed knife death did not resurrect the spectator' }
+if ((State $spectatorId).role -ne 'NtfPrivate') { throw 'Confirmed knife death did not resurrect the spectator' }
 if ((Server "/damageprobe knifestate $actorId") -match 'cooldownLeft=0.000') { throw 'Successful resurrection did not start cooldown' }
 # Both O-11 guns must resolve last stand before creating their first death effect.
 $null = Server "/forcerole $actorId NtfSergeant"
@@ -122,5 +123,55 @@ foreach ($weapon in @(
     Save
     if ($afterToys -notmatch "$($weapon.toy)=[1-9]") { throw 'O-11 confirmed death did not create its effect' }
 }
+}
+
+if (@($Context.Actors).Count -ne 2) { throw 'Lacuna walkthrough needs --pair for victim-view recording' }
+$victimId = [int]$Context.Actors[1].id
+$victimClient = [int]$Context.ClientIds[1]
+$spectatorId = $victimId
+$null = Server "/forcerole $actorId Spectator"
+Start-Sleep -Seconds 1
+if ((Server "/reinforcements sub lacuna operative $actorId") -notmatch 'Lacuna|lacuna|operative|分配|缺页') { throw 'Lacuna assignment failed' }
+WaitFor { (State $actorId).role -eq 'ChaosRifleman' } 'Attacker not Lacuna'
+$null = Server "/god $actorId disable"
+$null = Server "/forcerole $victimId ClassD"
+WaitFor { (State $victimId).role -eq 'ClassD' } 'Lacuna target not Class-D'
+$null = Server "/god $victimId disable"
+if ((Server "/scp181 set $victimId") -notmatch '已将玩家') { throw 'Lacuna SCP-181 assignment failed' }
+# Escaped SCP-181 is the hostile native NTF fixture; retention is a declared test configuration.
+$null = Server "/damageprobe escapentf $victimId"
+WaitFor { (State $victimId).role -eq 'NtfPrivate' } 'Lacuna target did not escape to NTF'
+if ((Server '/scp181 status') -notmatch "ID: $victimId\b") { throw 'Escaped target did not retain SCP-181' }
+$slot = [Array]::IndexOf(@((State $actorId).items), 'GunShotgun') + 1
+$null = Invoke-LabInventory -Slot $slot -Expect GunShotgun
+$null = Server "/damageprobe place $victimId $actorId 0 3"
+Start-Sleep -Seconds 4
+$null = Server "/damageprobe sethp $victimId 10"
+
+function VictimCapture([string]$name, [int]$frames) {
+    $folder = "$runEvidence/mod-input-$victimClient"
+    $request = @{ id = $name; frames = $frames; capture = $true; audio = $true }
+    $request | ConvertTo-Json | Set-Content "$folder/command.tmp" -Encoding utf8
+    [IO.File]::Move("$folder/command.tmp", "$folder/command.json", $true)
+    return @{ folder = $folder; id = $name }
+}
+function AwaitVictim($handle) {
+    WaitFor {
+        try { $done = Get-Content "$($handle.folder)/result.json" -Raw | ConvertFrom-Json } catch { return $false }
+        if ($done.id -ne $handle.id) { return $false }
+        if ($done.error) { throw $done.error }
+        return $true
+    } 'Victim recording did not finish' 60
+}
+$victimCapture = VictimCapture 'lacuna-survived-victim' 420
+Strike 'lacuna-last-stand'
+AwaitVictim $victimCapture
+if ((State $victimId).role -ne 'NtfPrivate' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01 -or (State $victimId).godMode) { throw 'Lacuna started recall or killed the last-stand survivor' }
+$observations.cases['lacuna-last-stand'].victimAfterRecallWindow = State $victimId
+Save
+$victimCapture = VictimCapture 'lacuna-confirmed-death-victim' 720
+Strike 'lacuna-confirmed-death' 600
+AwaitVictim $victimCapture
+if ((State $victimId).role -ne 'Spectator' -or (State $victimId).godMode) { throw 'Confirmed Lacuna death did not finish and clean up' }
 $observations.verified = $true
 Save
