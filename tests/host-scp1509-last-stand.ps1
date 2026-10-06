@@ -27,9 +27,9 @@ function Spawn([string]$name, [string]$role) {
     $null = Server "/god $id disable"
     return $id
 }
-function Strike([string]$name, [int]$frames = 210) {
+function Strike([string]$name, [int]$frames = 210, [switch]$AlreadyAimed) {
     $target = State $victimId
-    $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
+    if (!$AlreadyAimed) { $null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z } }
     $null = Invoke-LabInput @{ id = $name; frames = $frames; inputFrames = 30; keys = @(323); capture = $true; audio = $true; expectAudio = $true }
     $observations.cases[$name] = [ordered]@{
         victim = State $victimId; spectator = State $spectatorId
@@ -172,14 +172,16 @@ function AwaitVictim($handle) {
         return $true
     } 'Victim recording did not finish' 60
 }
+$target = State $victimId
+$null = Set-LabAim -Target @{ x = $target.position.x; y = $target.camera.y - 0.35; z = $target.position.z }
 $victimCapture = VictimCapture 'lacuna-survived-victim' 420
-Strike 'lacuna-last-stand'
+Strike 'lacuna-last-stand' -AlreadyAimed
 AwaitVictim $victimCapture
 if ((State $victimId).role -ne 'NtfPrivate' -or [Math]::Abs((State $victimId).health - 1) -gt 0.01 -or (State $victimId).godMode) { throw 'Lacuna started recall or killed the last-stand survivor' }
 $observations.cases['lacuna-last-stand'].victimAfterRecallWindow = State $victimId
 Save
 $victimCapture = VictimCapture 'lacuna-confirmed-death-victim' 720
-Strike 'lacuna-confirmed-death' 600
+Strike 'lacuna-confirmed-death' 600 -AlreadyAimed
 AwaitVictim $victimCapture
 if ((State $victimId).role -ne 'Spectator' -or (State $victimId).godMode) { throw 'Confirmed Lacuna death did not finish and clean up' }
 $observations.verified = $true
