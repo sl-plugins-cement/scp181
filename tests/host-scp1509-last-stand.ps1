@@ -1,4 +1,4 @@
-param($Context, [switch]$LacunaOnly)
+param($Context, [switch]$LacunaOnly, [switch]$SkipKnife)
 # Arranged roles/health; strikes and item selection use real client input.
 $ErrorActionPreference = 'Stop'
 $actorId = [int]$Context.Actor.id
@@ -44,6 +44,7 @@ WaitFor { (Server '/roundtime') -match 'Round time:' } 'Round not ready'
 Start-Sleep -Seconds 3
 foreach ($command in '/decontamination disable', '/wave forcepause NTF true', '/wave forcepause Chaos true', '/reinforcements auto off', '/scp181 clear') { $null = Server $command }
 if (!$LacunaOnly) {
+if (!$SkipKnife) {
 $null = Server "/forcerole $actorId NtfSergeant"
 WaitFor { (State $actorId).role -eq 'NtfSergeant' } 'Attacker not NTF'
 $null = Server "/god $actorId enable"
@@ -94,14 +95,19 @@ Strike 'confirmed-death'
 if ((State $victimId).role -ne 'Spectator') { throw 'Last-stand charge was not spent exactly once' }
 if ((State $spectatorId).role -ne 'NtfPrivate') { throw 'Confirmed knife death did not resurrect the spectator' }
 if ((Server "/damageprobe knifestate $actorId") -match 'cooldownLeft=0.000') { throw 'Successful resurrection did not start cooldown' }
+}
 # Both O-11 guns must resolve last stand before creating their first death effect.
-$null = Server "/forcerole $actorId NtfSergeant"
-WaitFor { (State $actorId).role -eq 'NtfSergeant' } 'O-11 gun fixture attacker not NTF'
-$null = Server "/god $actorId enable"
+if (@($Context.Actors).Count -ne 2) { throw 'O-11 walkthrough needs --pair' }
+$victimId = [int]$Context.Actors[1].id
+if ($SkipKnife) { $spectatorId = $victimId }
 foreach ($weapon in @(
-    @{ item = 'o11-redaction-fsp9'; type = 'GunFSP9'; toy = 'redactionRigs' },
-    @{ item = 'o11-echo-com18'; type = 'GunCOM18'; toy = 'echoCores' }
+    @{ item = 'o11-redaction-fsp9'; role = 'blank'; type = 'GunFSP9'; key = 49; toy = 'redactionRigs' },
+    @{ item = 'o11-echo-com18'; role = 'echo'; type = 'GunCOM18'; key = 50; toy = 'echoCores' }
 )) {
+    $null = Server "/forcerole $actorId Spectator"
+    WaitFor { (State $actorId).role -eq 'Spectator' } 'O-11 attacker reset failed'
+    if ((Server "/reinforcements sub o11 $($weapon.role) $actorId") -notmatch 'Assigning') { throw 'O-11 kit assignment failed' }
+    WaitFor { (State $actorId).items -contains $weapon.type } 'O-11 kit firearm not granted'
     $null = Server "/forcerole $victimId ClassD"
     WaitFor { (State $victimId).role -eq 'ClassD' } 'O-11 target not Class-D'
     $null = Server "/god $victimId disable"
@@ -109,10 +115,8 @@ foreach ($weapon in @(
     $null = Server "/damageprobe escape $victimId"
     WaitFor { (State $victimId).role -eq 'ChaosConscript' } 'O-11 target did not escape to Chaos'
     $null = Server "/damageprobe sethp $victimId 10"
-    $null = Server "/reinforcements items $($weapon.item) $actorId"
-    WaitFor { (State $actorId).items -contains $weapon.type } 'O-11 gun not granted'
-    $slot = [Array]::IndexOf(@((State $actorId).items), $weapon.type) + 1
-    $null = Invoke-LabInventory -Slot $slot -Expect $weapon.type
+    $null = Invoke-LabInput @{ frames = 90; inputFrames = 2; keys = @($weapon.key) }
+    WaitFor { (State $actorId).held -eq $weapon.type } 'O-11 firearm not selected'
     Start-Sleep -Seconds 1
     $null = Server "/damageprobe place $victimId $actorId 0 3"
     Start-Sleep -Seconds 1
