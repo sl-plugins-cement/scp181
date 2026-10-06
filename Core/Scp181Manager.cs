@@ -60,6 +60,10 @@ namespace Scp181
         /// <summary>Spends one last-stand charge; false when none are left.</summary>
         public static bool TryUseSurvive(Player p) => TrySpend(SurviveLeft, p);
 
+        /// <summary>Whether a lethal hit can still be cancelled by last stand.</summary>
+        public static bool HasSurviveCharge(Player p)
+            => p != null && SurviveLeft.TryGetValue(p.PlayerId, out int left) && left > 0;
+
         /// <summary>Spends one guaranteed Pocket Dimension escape; false when none are left.</summary>
         public static bool TryUsePocketEscape(Player p) => TrySpend(PocketEscapesLeft, p);
 

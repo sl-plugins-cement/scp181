@@ -55,6 +55,7 @@ namespace Scp181.Events
             ServerHandler.RoundEnded += OnRoundEnded;
             ServerHandler.RoundRestarted += OnRestartingRound;
             PlayerHandler.Dying += OnDying;
+            PlayerHandler.Scp1509Resurrecting += OnScp1509Resurrecting;
             PlayerHandler.ChangedRole += OnChangedRole;
             PlayerHandler.Hurting += OnHurting;
             PlayerHandler.Death += OnDied;
@@ -72,6 +73,7 @@ namespace Scp181.Events
             ServerHandler.RoundEnded -= OnRoundEnded;
             ServerHandler.RoundRestarted -= OnRestartingRound;
             PlayerHandler.Dying -= OnDying;
+            PlayerHandler.Scp1509Resurrecting -= OnScp1509Resurrecting;
             PlayerHandler.ChangedRole -= OnChangedRole;
             PlayerHandler.Hurting -= OnHurting;
             PlayerHandler.Death -= OnDied;
@@ -258,22 +260,37 @@ namespace Scp181.Events
 
         }
 
-        private void OnDying(PlayerDyingEventArgs ev)
+        private void OnScp1509Resurrecting(PlayerScp1509ResurrectingEventArgs ev)
+        {
+            // SCP-1509 processes resurrection inside ApplyDamage, before the cancellable
+            // Dying event. Leave the charge for OnDying, after native reductions and shields.
+            if (Scp181Manager.IsScp181(ev.KilledPlayer) && Scp181Manager.HasSurviveCharge(ev.KilledPlayer))
+            {
+                ev.IsAllowed = false;
+                // Native selection reserves this spectator before raising the event.
+                if (ev.RevivedPlayer is { IsDestroyed: false })
+                    Scp1509Item.SetEligible(ev.RevivedPlayer, true);
+            }
+        }
+
+        private void OnDying(PlayerDyingEventArgs ev) => TryPreventDeath(ev);
+
+        internal bool TryPreventDeath(PlayerDyingEventArgs ev)
         {
             Player victim = ev.Player;
             if (!ev.IsAllowed || !Scp181Manager.IsScp181(victim))
-                return;
+                return false;
 
             // Native Dying runs after protection, damage modifiers, AHP and Hume Shield,
             // but before death callbacks. Scripted instant kills must still terminate the role.
             if (ev.DamageHandler is not StandardDamageHandler damage || damage.Damage == -1f)
-                return;
+                return false;
 
             if (!Scp181Manager.TryUseSurvive(victim))
             {
                 if (Config.Debug)
                     Log.Debug($"[Scp181] {victim.Nickname} dies to {damage.GetType().Name} ({damage.Damage:F2}); no last-stand charge left.");
-                return;
+                return false;
             }
 
             victim.Health = 1f;
@@ -282,6 +299,7 @@ namespace Scp181.Events
             Scp181Hints.ShowSurviveMsg(victim);
             if (Config.Debug)
                 Log.Debug($"[Scp181] {victim.Nickname} survived {damage.GetType().Name} ({damage.Damage:F2}) on 1 HP; immune for {Config.SurviveImmunitySeconds:F1}s.");
+            return true;
         }
 
         private static void Deny(PlayerHurtingEventArgs ev, Player victim)

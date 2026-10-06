@@ -154,3 +154,11 @@ HintServiceMeow is optional and must be a LabAPI-compatible build; the identity 
 work without it. HUD hints follow the fallback option described above.
 
 See `tests/README.md` for offline regression checks and the in-game checklist.
+
+## Death cinematic integration
+
+Plugins replacing a lethal hit with a delayed death cinematic can call
+`Scp181.MainClass.TryPreventDeath(PlayerDyingEventArgs)` before starting the effect. It returns
+true only when last stand restores 1 HP and cancels the supplied death event, spending one charge.
+False leaves the event unchanged. Disabled SCP-181 and scripted instant kills return false.
+ReinforcementsSystem uses this optional API for O-11; install matching builds of both plugins.

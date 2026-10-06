@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2
+
+- SCP-1509 no longer resurrects a teammate from a lethal hit survived by SCP-181's last stand.
+  The selected spectator remains eligible, and the knife's resurrection cooldown is preserved.
+- ReinforcementsSystem can resolve last stand before starting O-11 death cinematics through the
+  optional `TryPreventDeath(PlayerDyingEventArgs)` integration.
+
 ## 2.1.1
 
 - Severed hands from SCP-330 kills SCP-181 again. Its bleed-out was treated as an immune status

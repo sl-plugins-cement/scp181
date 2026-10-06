@@ -2,6 +2,7 @@ using System;
 using LabApi.Loader.Features.Plugins;
 using Scp181.Events;
 using Scp181.Services;
+using LabApi.Events.Arguments.PlayerEvents;
 
 namespace Scp181
 {
@@ -17,12 +18,16 @@ namespace Scp181
 
         public override string Description => "SCP-181 Lucky Charm role with survival passives and an orange look-at identity line.";
 
-        public override Version Version => new Version(2, 1, 1);
+        public override Version Version => new Version(2, 1, 2);
 
         public override Version RequiredApiVersion => new Version(1, 1, 7);
 
         /// <summary>Shared hint display layer; a null provider when HintServiceMeow is missing.</summary>
         internal IHintDisplayProvider Hints { get; private set; } = null!;
+
+        /// <summary>Resolves last stand before a consumer replaces a lethal hit with a death cinematic.</summary>
+        public static bool TryPreventDeath(PlayerDyingEventArgs ev)
+            => Instance?.events?.TryPreventDeath(ev) == true;
 
         public override void Enable()
         {
