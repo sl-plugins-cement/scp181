@@ -69,7 +69,9 @@ the attacker's dodge countdown. `host-hsm-hints.config.yml` keeps defaults excep
 `copy_chance: 1`, no round-start pick and debug logging. Dodge stays random at 0.5: the last stand
 retries until it fires, and the dodge countdown is confirmed in the burst clips.
 
-From `.tests/offline-clients`, after committing and building the plugin, HsmAdapter and the probe:
+From `.tests/offline-clients`, after committing and building the plugin, HsmAdapter and the probe,
+run these commands from PowerShell, not Git Bash. The `host-*.ps1` scenarios match Chinese RA replies,
+which Git Bash garbles:
 
 ```powershell
 python tools/package.py --repo <scp181 checkout> --out runtime/candidates/<unique name> `

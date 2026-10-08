@@ -56,8 +56,9 @@ rules (distance, line of sight, etc.) still apply.
    SCP-106's grab) becomes capped damage; an uncapped one kills, and last stand does not apply.
 5. **Status effect immunity** — damage-over-time from bleeding, poison, hypothermia and similar
    status effects never lands, and those debuffs are stripped twice a second. SCP attack states
-   are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and the Pocket Dimension run
-   their course, and their damage takes the SCP cap roll above. SCP-3114's strangulation takes
+   are not curable ailments and are left alone: SCP-049's cardiac arrest, SCP-106's corrosion and
+   the Pocket Dimension run their course (stripping them stops those SCPs finishing their attacks),
+   and their damage takes the SCP cap roll above. SCP-3114's strangulation takes
    the cap roll but is never dodged, because the hold breaks as soon as a tick is refused.
    Shared movement effects (`Ensnared` and `Concussed`) are preserved. Severed hands from
    SCP-330 is not a status effect here: its bleed-out lands and kills after the last stand.
