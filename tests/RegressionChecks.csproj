@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(SCPSL_METAREPO)\build\scpsl-deps.props" Condition="'$(SCPSL_METAREPO)' != '' And Exists('$(SCPSL_METAREPO)\build\scpsl-deps.props')" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">$(MSBuildProjectDirectory)\..\..\_buildrefs</SCP_SL_MANAGED>
+    <SCP_SL_MANAGED Condition="'$(SCP_SL_MANAGED)' == ''">C:\Program Files (x86)\Steam\steamapps\common\SCP Secret Laboratory Dedicated Server\SCPSL_Data\Managed</SCP_SL_MANAGED>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="RegressionChecks.cs" />

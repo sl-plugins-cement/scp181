@@ -132,13 +132,13 @@ vanilla hints instead.
 dotnet build -c Release
 ```
 
-The build references HsmAdapter from source. Clone
-[`sl-plugins-cement/HsmAdapter`](https://github.com/sl-plugins-cement/HsmAdapter) beside this
-checkout as `..\HsmAdapter`, or pass `-p:HsmAdapterProject=<path to HsmAdapter.csproj>`. Without
-either, the build stops with an error naming both options.
+The build references HsmAdapter from source. Set `SCPSL_METAREPO` to the metarepo checkout, or clone
+[`sl-plugins-cement/HsmAdapter`](https://github.com/sl-plugins-cement/HsmAdapter) and pass
+`-p:HsmAdapterProject=<path to HsmAdapter.csproj>`. Without either, the build stops with an error
+naming both options.
 
-The project uses a sibling `_buildrefs` directory when available; otherwise it checks the
-standard Steam dedicated-server install. Always build against the target server's assemblies.
+With `SCPSL_METAREPO` set, the game references come from the metarepo's synced `.deps`; otherwise the
+project checks the standard Steam dedicated-server install. Always build against the target server's assemblies.
 To override the location in PowerShell:
 
 ```powershell
