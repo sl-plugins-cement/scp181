@@ -33,6 +33,28 @@ namespace Scp181
         /// <summary>Running debuff-guard coroutines, so a re-assign cannot stack a second one.</summary>
         private static readonly Dictionary<int, CoroutineHandle> DebuffGuards = new Dictionary<int, CoroutineHandle>();
 
+        private static readonly Dictionary<int, double> SpentCopyLuck = new Dictionary<int, double>();
+
+        public static bool IsRareCopyItem(ItemType type) => Config.RareCopyItems?.Contains(type) == true;
+
+        public static double GetCopyChance(Player p, bool rare)
+        {
+            if (!IsScp181(p)) return 0;
+            SpentCopyLuck.TryGetValue(p.PlayerId, out double spent);
+            return ClampChance(Config.CopyChance) * (rare ? ClampChance(Config.RareCopyChanceMultiplier) : 1)
+                * Math.Pow(ClampChance(Config.CopyDecayPerUse), spent);
+        }
+
+        private static double ClampChance(float value)
+            => float.IsNaN(value) ? 0 : Math.Max(0, Math.Min(1, value));
+
+        public static void RecordSuccessfulCopy(Player p, bool rare)
+        {
+            if (!IsScp181(p)) return;
+            SpentCopyLuck.TryGetValue(p.PlayerId, out double spent);
+            SpentCopyLuck[p.PlayerId] = spent + (rare ? Math.Max(1, Config.RareCopyWeight) : 1);
+        }
+
         private static Config Config => MainClass.Instance!.Config;
 
         public static bool IsScp181(Player p) => p != null && Active.ContainsKey(p.PlayerId);
@@ -110,6 +132,7 @@ namespace Scp181
                 Active[p.PlayerId] = Scp181Team.D;
                 SurviveLeft[p.PlayerId] = Config.SurviveChances;
                 PocketEscapesLeft[p.PlayerId] = Config.PocketEscapeChances;
+                SpentCopyLuck[p.PlayerId] = 0;
 
                 p.MaxHealth = 100;
                 p.Health = 100;
@@ -233,6 +256,7 @@ namespace Scp181
             ImmortalUntil.Remove(p.PlayerId);
             SurviveLeft.Remove(p.PlayerId);
             PocketEscapesLeft.Remove(p.PlayerId);
+            SpentCopyLuck.Remove(p.PlayerId);
 
             Scp181Hints.RemoveRoleIntro(p);
             Scp181Hints.ClearTransient(p);
@@ -292,6 +316,7 @@ namespace Scp181
                 ImmortalUntil.Remove(id);
                 SurviveLeft.Remove(id);
                 PocketEscapesLeft.Remove(id);
+                SpentCopyLuck.Remove(id);
             }
 
             Scp181Identity.Clear();
@@ -300,6 +325,7 @@ namespace Scp181
             ImmortalUntil.Clear();
             SurviveLeft.Clear();
             PocketEscapesLeft.Clear();
+            SpentCopyLuck.Clear();
 
             foreach (CoroutineHandle guard in DebuffGuards.Values)
                 Timing.KillCoroutines(guard);

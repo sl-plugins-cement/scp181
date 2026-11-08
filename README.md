@@ -43,7 +43,11 @@ rules (distance, line of sight, etc.) still apply.
 
 ### Passives
 
-1. **Item duplication** — picking an item up has a `CopyChance` chance of yielding a second copy.
+1. **Item duplication** — chance is `CopyChance × (rare ? RareCopyChanceMultiplier : 1) × CopyDecayPerUse ^ spentLuck`.
+   Successful common copies spend one luck; rare copies spend `RareCopyWeight`. Luck is shared
+   across items per assignment, persists through presentation refreshes, and resets on removal.
+   `scp181 status` shows current common and rare chances. Defaults start at 10% common / 5% rare;
+   four common copies leave 2.40% common, and one rare copy leaves 3.43% common / 1.72% rare.
    The copy is only granted when the inventory has room for both, so a pickup can never be
    swallowed by a full inventory.
 2. **Dodge** — any attack that reaches SCP-181 has a `DodgeChance` chance of being negated
@@ -95,7 +99,11 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 | Option | Default | Meaning |
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
-| `copy_chance` | `0.1` | Item duplication chance |
+| `copy_chance` | `0.1` | Initial common duplication chance |
+| `copy_decay_per_use` | `0.7` | Chance multiplier per spent luck point (0–1) |
+| `rare_copy_chance_multiplier` | `0.5` | Additional rare-item chance multiplier (0–1) |
+| `rare_copy_weight` | `3` | Luck spent per successful rare copy (minimum 1) |
+| `rare_copy_items` | `Jailbird, MicroHID, ParticleDisruptor, GunSCP127, GunFRMG0, KeycardO5, SCP500, SCP207, AntiSCP207, SCP268, SCP1853, SCP2176, SCP244a, SCP244b, SCP1344, SCP018` | High-value weapons, highest-access keycard and SCP consumables using rare odds and cost |
 | `dodge_chance` | `0.05` | Chance an attack is negated |
 | `damage_reduction_table` | empty | Damage source → fraction of damage kept |
 | `scp_damage_cap` | `10` | Cap per capped SCP hit, and the value a capped SCP instant kill becomes |

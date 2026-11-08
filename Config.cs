@@ -22,6 +22,36 @@ namespace Scp181
         [Description("Chance (0-1) that picking an item up also duplicates it.")]
         public float CopyChance { get; set; } = 0.1f;
 
+        [Description("Chance multiplier (0-1) per spent luck point.")]
+        public float CopyDecayPerUse { get; set; } = 0.7f;
+
+        [Description("Additional rare-item chance multiplier (0-1).")]
+        public float RareCopyChanceMultiplier { get; set; } = 0.5f;
+
+        [Description("Luck spent per successful rare copy (minimum 1).")]
+        public int RareCopyWeight { get; set; } = 3;
+
+        [Description("High-value weapons, access cards and SCP consumables using rare odds and cost.")]
+        public List<ItemType> RareCopyItems { get; set; } = new List<ItemType>
+        {
+            ItemType.Jailbird,
+            ItemType.MicroHID,
+            ItemType.ParticleDisruptor,
+            ItemType.GunSCP127,
+            ItemType.GunFRMG0,
+            ItemType.KeycardO5,
+            ItemType.SCP500,
+            ItemType.SCP207,
+            ItemType.AntiSCP207,
+            ItemType.SCP268,
+            ItemType.SCP1853,
+            ItemType.SCP2176,
+            ItemType.SCP244a,
+            ItemType.SCP244b,
+            ItemType.SCP1344,
+            ItemType.SCP018,
+        };
+
         [Description("Chance (0-1) that an incoming attack is negated outright.")]
         public float DodgeChance { get; set; } = 0.05f;
 

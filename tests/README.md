@@ -119,3 +119,4 @@ to 1 for deterministic positive cases; set `dodge_chance` to 0 for damage checks
 - Release build: passed, zero warnings/errors, against local LabAPI 1.1.7 assemblies.
 - Offline regression executable: 22 checks passed.
 - Client display, network replication and live gameplay checklist: not run.
+`damageprobe collectcopy <id> <ItemType>` is a quick-tier fixture that clears inventory and retries native validated pickup completion up to 200 times until two items are observed. It covers server pickup events, not client input or search timing.

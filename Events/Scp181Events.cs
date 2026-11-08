@@ -407,7 +407,8 @@ namespace Scp181.Events
             if (Config.Debug)
                 Log.Info($"[Scp181] {ev.Player.Nickname} picked up {ev.Item.Type}.");
 
-            if (UnityEngine.Random.value >= Config.CopyChance)
+            bool rare = Scp181Manager.IsRareCopyItem(ev.Item.Type);
+            if (UnityEngine.Random.value >= Scp181Manager.GetCopyChance(ev.Player, rare))
                 return;
 
             // The native pickup has succeeded; cancelled/full-inventory pickups cannot grant copies.
@@ -417,7 +418,10 @@ namespace Scp181.Events
             try
             {
                 if (ev.Player.AddItem(ev.Item.Type) != null)
+                {
+                    Scp181Manager.RecordSuccessfulCopy(ev.Player, rare);
                     Scp181Hints.ShowCopyMsg(ev.Player);
+                }
             }
             catch (Exception ex)
             {

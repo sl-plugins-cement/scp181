@@ -48,6 +48,24 @@ public sealed class ProbeCommand : ICommand
         if (p == null) { response = "no player with id " + args.At(1); return false; }
         switch (args.At(0))
         {
+            // Quick-tier native pickup completion; does not establish client search timing/input.
+            case "collectcopy":
+            {
+                var type = (ItemType)Enum.Parse(typeof(ItemType), args.At(2), true);
+                for (int attempt = 1; attempt <= 200; attempt++)
+                {
+                    p.ClearInventory();
+                    var pickup = Pickup.Create(type, p.Position);
+                    var template = InventorySystem.InventoryItemLoader.AvailableItems[type];
+                    var search = new InventorySystem.Searching.ItemSearchCompletor(p.ReferenceHub, pickup.Base, template, 4);
+                    if (!search.ValidateStart() || !search.ValidateUpdate())
+                    { pickup.Destroy(); response = "native search rejected"; return false; }
+                    search.Complete();
+                    if (p.Items.Count() == 2)
+                    { response = $"native copy type={type} items=2 attempts={attempt}"; return true; }
+                }
+                response = "no copy in 200 attempts"; return false;
+            }
             case "damage": p.ReferenceHub.playerStats.DealDamage(new UniversalDamageHandler(float.Parse(args.At(2)), DeathTranslations.Falldown)); break;
             case "sethp": p.Health = float.Parse(args.At(2)); break;
             case "escape": p.ReferenceHub.roleManager.ServerSetRole(RoleTypeId.ChaosConscript, RoleChangeReason.Escaped); break;
@@ -136,3 +154,4 @@ public sealed class ProbeCommand : ICommand
     }
 }
 static class ProbeArgs { public static string At(this ArraySegment<string> a, int i) => a.Array[a.Offset+i]; }
+

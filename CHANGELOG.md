@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+
+- Duplication consumes shared per-assignment luck, with lower odds and greater cost for configurable rare items.
+- Add decay configuration and current common/rare copy chances to `scp181 status`.
+
 ## 2.1.2
 
 - SCP-1509 no longer resurrects a teammate from a lethal hit survived by SCP-181's last stand.
