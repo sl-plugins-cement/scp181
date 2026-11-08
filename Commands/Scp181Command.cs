@@ -111,7 +111,7 @@ namespace Scp181.Commands
             return current.Count == 0
                 ? "当前没有 SCP-181"
                 : $"当前 SCP-181（{current.Count} 人）：\n" + string.Join("\n",
-                    current.Select(p => $"{p.Nickname} (ID: {p.PlayerId}, {p.UserId}) 复制概率：普通 {Scp181Manager.GetCopyChance(p, false):P2} / 稀有 {Scp181Manager.GetCopyChance(p, true):P2}"));
+                    current.Select(p => $"{p.Nickname} (ID: {p.PlayerId}, {p.UserId}) 复制概率：普通 {Scp181Manager.GetCopyChance(p, false):P2} / 稀有 {Scp181Manager.GetCopyChance(p, true):P2} / 已消耗幸运 {Scp181Manager.GetSpentCopyLuck(p):F2}"));
         }
     }
 }

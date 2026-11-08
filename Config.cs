@@ -22,8 +22,14 @@ namespace Scp181
         [Description("Chance (0-1) that picking an item up also duplicates it.")]
         public float CopyChance { get; set; } = 0.1f;
 
-        [Description("Chance multiplier (0-1) per spent luck point.")]
-        public float CopyDecayPerUse { get; set; } = 0.7f;
+        [Description("Spent luck at half odds; invalid values use 8.")]
+        public float CopyLuckHalfPoint { get; set; } = 8f;
+        [Description("Decay exponent; invalid values use 4.")]
+        public float CopyDecaySteepness { get; set; } = 4f;
+        [Description("Luck recovered per minute after the delay; nonpositive values disable recovery.")]
+        public float CopyLuckRecoveryPerMinute { get; set; } = 0.5f;
+        [Description("Recovery delay since the latest successful copy, in seconds.")]
+        public float CopyLuckRecoveryDelaySeconds { get; set; } = 60f;
 
         [Description("Additional rare-item chance multiplier (0-1).")]
         public float RareCopyChanceMultiplier { get; set; } = 0.5f;
