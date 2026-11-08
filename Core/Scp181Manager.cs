@@ -74,7 +74,7 @@ namespace Scp181
             if (!IsScp181(p)) return 0;
             double spent = GetSpentCopyLuck(p);
             return ClampChance(Config.CopyChance) * (rare ? ClampChance(Config.RareCopyChanceMultiplier) : 1)
-                * (1 / (1 + Math.Pow(spent / ValidPositive(Config.CopyLuckHalfPoint, 10), ValidPositive(Config.CopyDecaySteepness, 4))))
+                * (1 / (1 + Math.Pow(spent / ValidPositive(Config.CopyLuckHalfPoint, 8), ValidPositive(Config.CopyDecaySteepness, 4))))
                 * (rare ? Math.Pow(ClampChance(Config.RareCopyDecayPerUse), GetRareSpentCopyLuck(p)) : 1);
         }
 

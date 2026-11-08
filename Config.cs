@@ -22,8 +22,8 @@ namespace Scp181
         [Description("Chance (0-1) that picking an item up also duplicates it.")]
         public float CopyChance { get; set; } = 0.1f;
 
-        [Description("Spent luck at half odds; invalid values use 10.")]
-        public float CopyLuckHalfPoint { get; set; } = 10f;
+        [Description("Spent luck at half odds; invalid values use 8.")]
+        public float CopyLuckHalfPoint { get; set; } = 8f;
         [Description("Decay exponent; invalid values use 4.")]
         public float CopyDecaySteepness { get; set; } = 4f;
         [Description("Luck recovered per minute after the delay; nonpositive values disable recovery.")]

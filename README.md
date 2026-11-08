@@ -44,8 +44,8 @@ rules (distance, line of sight, etc.) still apply.
 ### Passives
 
 1. **Item duplication** — chance is `CopyChance × (rare ? RareCopyChanceMultiplier : 1) / (1 + (spentLuck / CopyLuckHalfPoint) ^ CopyDecaySteepness)`.
-   Common copies spend one luck; rare copies spend `RareCopyWeight`. With half-point 10 and
-   exponent 4, five common copies retain 94% of initial odds, ten retain 50%, and fifteen 16%.
+   Common copies spend one luck; rare copies spend `RareCopyWeight`. With half-point 8 and
+   exponent 4, five common copies retain 87% of initial odds, eight retain 50%, and twelve 16%.
    Initial defaults are 10% common / 5% rare. Spent luck recovers at 2 per minute starting
    30 seconds after the latest successful copy, never below zero, lazily on reads and copies.
    Luck is shared across items per assignment, persists through presentation refreshes, and
@@ -105,7 +105,7 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
 | `copy_chance` | `0.1` | Initial common duplication chance |
-| `copy_luck_half_point` | `10` | Spent luck at half odds; invalid/nonpositive values use 10 |
+| `copy_luck_half_point` | `8` | Spent luck at half odds; invalid/nonpositive values use 8 |
 | `copy_decay_steepness` | `4` | Curve exponent; invalid/nonpositive values use 4 |
 | `copy_luck_recovery_per_minute` | `2` | Recovery rate; nonpositive/nonfinite values disable recovery |
 | `copy_luck_recovery_delay_seconds` | `30` | Delay since latest successful copy; nonpositive/nonfinite values use zero |
