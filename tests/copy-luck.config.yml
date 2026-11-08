@@ -1,0 +1,5 @@
+copy_chance: 1
+copy_luck_recovery_delay_seconds: 5
+copy_luck_recovery_per_minute: 60
+auto_select_on_round_start: false
+debug: true
