@@ -24,14 +24,17 @@ namespace Scp181
 
         [Description("Spent luck at half odds; invalid values use 8.")]
         public float CopyLuckHalfPoint { get; set; } = 8f;
+
         [Description("Decay exponent; invalid values use 4.")]
         public float CopyDecaySteepness { get; set; } = 4f;
+
         [Description("Luck recovered per minute after the delay; nonpositive values disable recovery.")]
         public float CopyLuckRecoveryPerMinute { get; set; } = 2f;
+
         [Description("Recovery delay since the latest successful copy, in seconds.")]
         public float CopyLuckRecoveryDelaySeconds { get; set; } = 30f;
 
-        [Description("Additional chance multiplier per successful rare copy (0-1).") ]
+        [Description("Additional chance multiplier per successful rare copy (0-1).")]
         public float RareCopyDecayPerUse { get; set; } = 0.7f;
 
         [Description("Additional rare-item chance multiplier (0-1).")]
