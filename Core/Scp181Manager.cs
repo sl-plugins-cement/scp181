@@ -36,6 +36,7 @@ namespace Scp181
         private sealed class CopyLuck
         {
             public double Spent;
+            public double RareSpent;
             public double LastCopy;
             public double RecoveredThrough;
         }
@@ -50,9 +51,17 @@ namespace Scp181
             double delay = ValidPositive(Config.CopyLuckRecoveryDelaySeconds, 0);
             double start = Math.Max(luck.RecoveredThrough, luck.LastCopy + delay);
             double rate = ValidPositive(Config.CopyLuckRecoveryPerMinute, 0);
-            luck.Spent = Math.Max(0, luck.Spent - Math.Max(0, now - start) * rate / 60);
+            double recovered = Math.Max(0, now - start) * rate / 60;
+            luck.Spent = Math.Max(0, luck.Spent - recovered);
+            luck.RareSpent = Math.Max(0, luck.RareSpent - recovered);
             luck.RecoveredThrough = now;
             return luck.Spent;
+        }
+
+        public static double GetRareSpentCopyLuck(Player p)
+        {
+            GetSpentCopyLuck(p);
+            return IsScp181(p) && SpentCopyLuck.TryGetValue(p.PlayerId, out CopyLuck luck) ? luck.RareSpent : 0;
         }
 
         private static double ValidPositive(float value, double fallback)
@@ -65,7 +74,8 @@ namespace Scp181
             if (!IsScp181(p)) return 0;
             double spent = GetSpentCopyLuck(p);
             return ClampChance(Config.CopyChance) * (rare ? ClampChance(Config.RareCopyChanceMultiplier) : 1)
-                * (1 / (1 + Math.Pow(spent / ValidPositive(Config.CopyLuckHalfPoint, 8), ValidPositive(Config.CopyDecaySteepness, 4))));
+                * (1 / (1 + Math.Pow(spent / ValidPositive(Config.CopyLuckHalfPoint, 10), ValidPositive(Config.CopyDecaySteepness, 4))))
+                * (rare ? Math.Pow(ClampChance(Config.RareCopyDecayPerUse), GetRareSpentCopyLuck(p)) : 1);
         }
 
         private static double ClampChance(float value)
@@ -75,10 +85,12 @@ namespace Scp181
         {
             if (!IsScp181(p)) return;
             double spent = GetSpentCopyLuck(p);
+            double rareSpent = GetRareSpentCopyLuck(p);
             double now = CopyClock;
             SpentCopyLuck[p.PlayerId] = new CopyLuck
             {
                 Spent = spent + (rare ? Math.Max(1, Config.RareCopyWeight) : 1),
+                RareSpent = rareSpent + (rare ? 1 : 0),
                 LastCopy = now,
                 RecoveredThrough = now,
             };

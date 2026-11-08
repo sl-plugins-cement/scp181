@@ -3,8 +3,9 @@
 ## 2.2.0
 
 - Duplication consumes shared per-assignment luck, with lower odds and greater cost for configurable rare items.
-- Use a soft-knee curve (half-point 8, exponent 4), with 0.5 spent luck recovered per minute after 60 seconds without a successful copy.
-- Add curve/recovery configuration and recovered common/rare chances plus spent luck to `scp181 status`.
+- Use a soft-knee curve (half-point 10, exponent 4), with 2 spent luck recovered per minute after 30 seconds without a successful copy.
+- Rare copies also multiply rare odds by 0.7 per recoverable rare-copy count, using the same recovery delay and rate.
+- Add curve/recovery configuration and recovered common/rare chances plus shared and rare spent luck to `scp181 status`.
 
 ## 2.1.2
 

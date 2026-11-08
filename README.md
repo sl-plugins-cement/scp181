@@ -44,12 +44,15 @@ rules (distance, line of sight, etc.) still apply.
 ### Passives
 
 1. **Item duplication** — chance is `CopyChance × (rare ? RareCopyChanceMultiplier : 1) / (1 + (spentLuck / CopyLuckHalfPoint) ^ CopyDecaySteepness)`.
-   Common copies spend one luck; rare copies spend `RareCopyWeight`. With half-point 8 and
-   exponent 4, five common copies retain 87% of initial odds, eight retain 50%, and twelve 16%.
-   Initial defaults are 10% common / 5% rare. Spent luck recovers at 0.5 per minute starting
-   60 seconds after the latest successful copy, never below zero, lazily on reads and copies.
+   Common copies spend one luck; rare copies spend `RareCopyWeight`. With half-point 10 and
+   exponent 4, five common copies retain 94% of initial odds, ten retain 50%, and fifteen 16%.
+   Initial defaults are 10% common / 5% rare. Spent luck recovers at 2 per minute starting
+   30 seconds after the latest successful copy, never below zero, lazily on reads and copies.
    Luck is shared across items per assignment, persists through presentation refreshes, and
-   resets on removal. `scp181 status` shows current common/rare chances and spent luck.
+   resets on removal. `scp181 status` shows current common/rare chances, spent luck and rare spent.
+   Rare chance additionally multiplies by `RareCopyDecayPerUse ^ rareSpent` (default 0.7).
+   Each successful rare copy adds one rare spent; it recovers with the same delay and rate as
+   shared luck and resets on removal. Common chance is unaffected by rare spent.
    The copy is only granted when the inventory has room for both, so a pickup can never be
    swallowed by a full inventory.
 2. **Dodge** — any attack that reaches SCP-181 has a `DodgeChance` chance of being negated
@@ -102,11 +105,12 @@ Other native handlers use their class name without the `DamageHandler` suffix.
 |---|---|---|
 | `min_players` | `5` | Alive player count that must be exceeded for a round-start pick |
 | `copy_chance` | `0.1` | Initial common duplication chance |
-| `copy_luck_half_point` | `8` | Spent luck at half odds; invalid/nonpositive values use 8 |
+| `copy_luck_half_point` | `10` | Spent luck at half odds; invalid/nonpositive values use 10 |
 | `copy_decay_steepness` | `4` | Curve exponent; invalid/nonpositive values use 4 |
-| `copy_luck_recovery_per_minute` | `0.5` | Recovery rate; nonpositive/nonfinite values disable recovery |
-| `copy_luck_recovery_delay_seconds` | `60` | Delay since latest successful copy; nonpositive/nonfinite values use zero |
+| `copy_luck_recovery_per_minute` | `2` | Recovery rate; nonpositive/nonfinite values disable recovery |
+| `copy_luck_recovery_delay_seconds` | `30` | Delay since latest successful copy; nonpositive/nonfinite values use zero |
 | `rare_copy_chance_multiplier` | `0.5` | Additional rare-item chance multiplier (0–1) |
+| `rare_copy_decay_per_use` | `0.7` | Additional multiplier per recoverable successful rare copy (clamped 0–1) |
 | `rare_copy_weight` | `3` | Luck spent per successful rare copy (minimum 1) |
 | `rare_copy_items` | `Jailbird, MicroHID, ParticleDisruptor, GunSCP127, GunFRMG0, KeycardO5, SCP500, SCP207, AntiSCP207, SCP268, SCP1853, SCP2176, SCP244a, SCP244b, SCP1344, SCP018` | High-value weapons, highest-access keycard and SCP consumables using rare odds and cost |
 | `dodge_chance` | `0.05` | Chance an attack is negated |
