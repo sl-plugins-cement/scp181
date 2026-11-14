@@ -1,3 +1,4 @@
+using InventorySystem.Items;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -156,7 +157,8 @@ namespace Scp181
             {
                 try
                 {
-                    p.SetRole(RoleTypeId.ClassD, RoleChangeReason.None);
+                    // 15.0: a mid-round swap into a custom role hides the native role intro (owner decision); the SCP-181 card is the presentation.
+                    p.SetRole(RoleTypeId.ClassD, RoleChangeReason.None, RoleSpawnFlags.All & ~(RoleSpawnFlags)4 /* 15.0 ShowIntroScreen */);
                 }
                 catch (Exception ex)
                 {
